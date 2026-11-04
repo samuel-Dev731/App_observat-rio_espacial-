@@ -10,9 +10,9 @@
 
 namespace {
 struct Vec3 { float x,y,z; };
-GLuint program=0, sphereVbo=0, sphereNbo=0, sphereIbo=0, starVbo=0;
+GLuint program=0, sphereVbo=0, sphereNbo=0, sphereIbo=0, starVbo=0, milkyWayVbo=0;
 GLint aPosition=-1,aNormal=-1,uMvp=-1,uModel=-1,uColor=-1,uLight=-1,uLighting=-1,uPointSize=-1;
-GLsizei sphereIndexCount=0, starCount=0;
+GLsizei sphereIndexCount=0, starCount=0, milkyWayCount=0;
 int surfaceW=1,surfaceH=1,quality=1;
 std::string gpuInfo="GPU não identificada";
 std::vector<GLuint> orbitVbos;
@@ -64,6 +64,18 @@ void createStars(int count){
  for(int i=0;i<count;i++){float a=rnd()*6.2831853f,z=rnd()*2.f-1.f,r=38.f+rnd()*12.f,q=std::sqrt(1-z*z);v.insert(v.end(),{r*q*std::cos(a),r*z,r*q*std::sin(a)});}
  starCount=count;upload(starVbo,v.data(),v.size()*sizeof(float),GL_ARRAY_BUFFER);
 }
+void createMilkyWay(int count){
+ std::vector<float> v;v.reserve((size_t)count*3);unsigned int seed=7312026u;
+ auto rnd=[&](){seed=1664525u*seed+1013904223u;return (seed&0x00ffffffu)/16777216.f;};
+ for(int i=0;i<count;i++){
+  float a=rnd()*6.2831853f;
+  float band=(rnd()+rnd()+rnd()-1.5f)*2.0f;
+  float radius=43.f+rnd()*5.f;
+  float horizontal=std::sqrt(std::max(0.f,1.f-band*band/16.f));
+  v.insert(v.end(),{radius*horizontal*std::cos(a),radius*band*.25f,radius*horizontal*std::sin(a)});
+ }
+ milkyWayCount=count;upload(milkyWayVbo,v.data(),v.size()*sizeof(float),GL_ARRAY_BUFFER);
+}
 void createOrbits(){const float radii[]={2.2f,3.3f,4.6f,6.2f,8.2f};for(float radius:radii){std::vector<float> v;for(int i=0;i<=360;i++){float a=i*0.0174532925f;v.insert(v.end(),{std::cos(a)*radius,0.f,std::sin(a)*radius});}GLuint b=0;upload(b,v.data(),v.size()*sizeof(float),GL_ARRAY_BUFFER);orbitVbos.push_back(b);}}
 void setMatrices(const float *mdl){multiply(mvp,vp,mdl);glUniformMatrix4fv(uMvp,1,GL_FALSE,mvp);glUniformMatrix4fv(uModel,1,GL_FALSE,mdl);}
 void drawSphere(float x,float y,float z,float radius,float r,float g,float b,bool lit){
@@ -76,7 +88,7 @@ void drawSphere(float x,float y,float z,float radius,float r,float g,float b,boo
 }
 void drawLines(GLuint buffer,GLsizei count,float r,float g,float b){identity(model);setMatrices(model);glUniform4f(uColor,r,g,b,1);glUniform1i(uLighting,0);glUniform1f(uPointSize,1);glBindBuffer(GL_ARRAY_BUFFER,buffer);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDisableVertexAttribArray(aNormal);glVertexAttrib3f(aNormal,0,1,0);glDrawArrays(GL_LINE_STRIP,0,count);glDisableVertexAttribArray(aPosition);}
 void drawStars(){identity(model);setMatrices(model);glUniform4f(uColor,.78f,.86f,1,1);glUniform1i(uLighting,0);glUniform1f(uPointSize,quality>=2?1.8f:1.3f);glBindBuffer(GL_ARRAY_BUFFER,starVbo);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDisableVertexAttribArray(aNormal);glVertexAttrib3f(aNormal,0,1,0);glDrawArrays(GL_POINTS,0,starCount);glDisableVertexAttribArray(aPosition);}
-void releaseObjects(){GLuint ids[]={sphereVbo,sphereNbo,sphereIbo,starVbo};glDeleteBuffers(4,ids);for(GLuint b:orbitVbos)glDeleteBuffers(1,&b);orbitVbos.clear();if(program)glDeleteProgram(program);program=0;}
+void drawMilkyWay(){identity(model);setMatrices(model);glUniform4f(uColor,.20f,.25f,.48f,.42f);glUniform1i(uLighting,0);glUniform1f(uPointSize,quality>=2?2.0f:1.35f);glBindBuffer(GL_ARRAY_BUFFER,milkyWayVbo);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDisableVertexAttribArray(aNormal);glVertexAttrib3f(aNormal,0,1,0);glDrawArrays(GL_POINTS,0,milkyWayCount);glDisableVertexAttribArray(aPosition);}\nvoid releaseObjects(){GLuint ids[]={sphereVbo,sphereNbo,sphereIbo,starVbo,milkyWayVbo};glDeleteBuffers(5,ids);for(GLuint b:orbitVbos)glDeleteBuffers(1,&b);orbitVbos.clear();if(program)glDeleteProgram(program);program=0;}
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -87,7 +99,7 @@ Java_br_com_observatorioespacial_NativeBridge_nativeInit(JNIEnv *env,jobject,jin
  char info[1024];std::snprintf(info,sizeof(info),"GPU: %s | %s | textura máx. %d | atributos %d | perfil %s",renderer?renderer:"?",version?version:"OpenGL ES",maxTex,maxAttribs,quality==2?"alto":quality==1?"médio":"econômico");gpuInfo=info;
  if(!createProgram()){gpuInfo+=" | erro ao criar shaders";return;}
  createSphere(quality==2?56:(quality==1?40:24),quality==2?72:(quality==1?56:32));
- createStars(quality==2?2600:(quality==1?1500:650));createOrbits();
+ createStars(quality==2?2600:(quality==1?1500:650));createMilkyWay(quality==2?9000:(quality==1?5000:2200));createOrbits();
  glEnable(GL_DEPTH_TEST);glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);glClearColor(.008f,.012f,.035f,1.f);
 }
 extern "C" JNIEXPORT void JNICALL
@@ -99,7 +111,7 @@ Java_br_com_observatorioespacial_NativeBridge_nativeRender(JNIEnv*,jobject,jfloa
  if(!program)return;glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);glUseProgram(program);
  float distance=24.f/std::max(.65f,std::min(2.6f,zoom));Vec3 eye={std::sin(yaw)*distance,5.f+pitch*10.f,std::cos(yaw)*distance};
  lookAt(view,eye,{0,0,0},{0,1,0});multiply(vp,projection,view);
- drawStars();for(size_t i=0;i<orbitVbos.size();i++)drawLines(orbitVbos[i],361,.20f,.25f,.38f);
+ drawMilkyWay();drawStars();for(size_t i=0;i<orbitVbos.size();i++)drawLines(orbitVbos[i],361,.20f,.25f,.38f);
  drawSphere(0,0,0,.72f,1.f,.66f,.20f,false);
  float p[15]={};observatorio_compute_orbits(seconds,p,15);
  const float styles[5][4]={{.92f,.15f,.15f,.17f},{1.f,.38f,.29f,.12f},{1.f,.18f,.43f,.95f},{.88f,.72f,.25f,.12f},{1.25f,.75f,.59f,.34f}};
