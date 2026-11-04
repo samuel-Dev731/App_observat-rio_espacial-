@@ -4,38 +4,39 @@
 
 ## Compatibilidade
 - Android 8.0 (API 26) ou superior.
-- ABI nativas Android NDK: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` (Intel 32 bits) e `x86_64` (Intel 64 bits).
-- OpenGL ES 2.0 como perfil gráfico mínimo. Dispositivos com OpenGL ES 3.x normalmente oferecem contexto ES 2.0 por compatibilidade retroativa.
+- ABIs Android NDK: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` (Intel 32 bits) e `x86_64` (Intel 64 bits).
+- OpenGL ES 2.0 como perfil gráfico mínimo. Em aparelhos com drivers ES 3.x, o aplicativo usa um contexto ES 2.0 compatível.
 - Kotlin, Android SDK, CMake 3.22.1 e JDK 17 para compilação.
 
-## Motor 3D — primeira etapa
-- Cena renderizada com OpenGL ES 2.0.
-- Malha esférica 3D para o Sol e cinco planetas ilustrativos.
-- Iluminação difusa, profundidade, órbitas e campo de estrelas.
-- Câmera com rotação por arraste e zoom por pinça.
-- Geometria das órbitas armazenada em cache para reduzir alocações por quadro.
-- Permissões de localização aproximada e precisa; latitude, longitude e precisão reportada são exibidas quando disponíveis.
+## Motor 3D nativo
+- O desenho da cena 3D foi transferido para C++ no Android NDK.
+- C++ cria malhas de esferas, buffers de vértices/índices, campo de estrelas e órbitas; envia comandos OpenGL ES 2.0 ao driver gráfico.
+- Shaders de vértice e fragmento, profundidade, iluminação difusa, órbitas e planetas.
+- C calcula as posições orbitais demonstrativas; C++ integra esse cálculo e executa a renderização.
+- Kotlin fica responsável pela interface Android, ciclo de vida, permissões, localização e gestos de câmera.
+- Arraste para girar a câmera e pinça para zoom.
 
-## Arquitetura nativa e desempenho
-- Kotlin mantém a interface, ciclo de vida, permissões e sensores/localização.
-- C++ via Android NDK/JNI executa o cálculo de posições orbitais e consulta o identificador do renderer gráfico quando o contexto OpenGL está ativo.
-- C fornece a rotina matemática de órbitas chamada pelo módulo C++.
-- OpenGL ES 2.0 envia os comandos gráficos ao driver da GPU; o driver e o Android decidem a execução na GPU disponível.
-- O pacote nativo é compilado para as quatro ABIs oficiais listadas acima. A disponibilidade real depende do processador e da versão Android do aparelho.
-- A implementação gráfica usa a API GLES 2.0; não significa que implemente todos os recursos específicos de ES 1.x, ES 3.x ou extensões de cada fabricante. ES 1.x não é suportado como caminho gráfico. Dispositivos sem suporte a OpenGL ES 2.0 não são compatíveis com a renderização 3D atual.
-- O Android/driver pode impor limites de memória, temperatura, frequência e recursos gráficos; o app deve reduzir qualidade e carga quando necessário.
-- C# não foi incorporado nesta etapa: este app é Android nativo Gradle/Kotlin. Adicionar .NET para Android só para misturar linguagens aumentaria o tamanho e o consumo sem acelerar automaticamente a GPU. Pode ser avaliado futuramente como módulo separado se houver uma função concreta que justifique o runtime .NET.
+## Detecção e qualidade adaptativa
+- No contexto OpenGL ativo, o app consulta fabricante/renderer da GPU, versão OpenGL ES, tamanho máximo de textura e número máximo de atributos de vértice.
+- Consulta a classe de memória disponível para o app e o número de núcleos lógicos reportados pela CPU.
+- Escolhe automaticamente um perfil econômico, médio ou alto para densidade da malha e quantidade de estrelas.
+- A qualidade não força o hardware: limites de memória, temperatura, consumo, driver e recursos da GPU continuam sob controle do Android e do fabricante.
+- O perfil é uma heurística inicial baseada em limites reportados, não um benchmark completo nem uma garantia de FPS. O aparelho pode ter desempenho inferior devido a throttling térmico, drivers ou outras aplicações.
 
-## Próximas etapas
-1. Aplicar texturas planetárias de alta resolução e mapas de relevo quando houver dados adequados.
-2. Melhorar os modelos físicos: escalas, inclinações, rotação, luas e anéis.
-3. Adicionar catálogo astronômico com fontes, datas e horários de referência.
-4. Integrar serviços de dados astronômicos e cache offline, identificando claramente atrasos e limitações de cada fonte.
+## CPU e GPU: o que realmente acontece
+- O código de cena, geração de geometria, cálculo orbital e preparação dos comandos roda em C++ na CPU.
+- As chamadas OpenGL ES são encaminhadas pelo driver Android à GPU, que executa o trabalho gráfico compatível com o hardware.
+- C++ não acessa diretamente registradores ou controla livremente clocks/voltagens da CPU/GPU; isso é gerenciado pelo sistema operacional e pelo driver.
+- A implementação atual usa OpenGL ES 2.0. Ela não ativa automaticamente recursos exclusivos de ES 3.0/3.1/3.2, nem implementa ES 1.x. Um aparelho ES 3.x pode executar este caminho ES 2.0 por compatibilidade, mas não aproveita ainda todos os recursos modernos.
+- Dispositivos sem suporte a OpenGL ES 2.0 não são compatíveis com a renderização 3D atual.
 
-## Precisão e limites
-A cena 3D atual é uma primeira base visual e educativa. As cores dos planetas são materiais ilustrativos, não texturas fotográficas reais; ainda não há relevo superficial nem dados astronômicos em tempo real. Nenhum aplicativo consegue mostrar literalmente todo o Universo em transmissão ao vivo: observações chegam com atrasos, coberturas e resoluções diferentes.
+## Limites e precisão
+A cena é uma base visual/educativa. Os materiais e cores dos planetas são ilustrativos, não texturas fotográficas; ainda não há mapas reais de superfície, relevo ou dados astronômicos em tempo real. As posições orbitais atuais são demonstrativas, não efemérides científicas. Nenhum aplicativo consegue exibir literalmente todo o Universo em transmissão ao vivo: observações têm limites de cobertura, resolução e atraso.
 
 A localização é processada no aparelho e exibida na tela; esta versão não envia coordenadas a servidores.
+
+## C# e linguagens
+C# ainda não foi incorporado. O aplicativo usa Kotlin para integração Android, C e C++ para cálculo/renderização nativa. Adicionar .NET para Android apenas para misturar linguagens aumentaria a complexidade e não aceleraria automaticamente a GPU.
 
 ## Compilação
 O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 8.9 a cada push na branch `main`. Quando a compilação terminar, o APK de depuração será publicado como artefato `observatorio-espacial-debug` na execução do workflow.
