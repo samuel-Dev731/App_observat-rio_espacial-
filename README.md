@@ -15,6 +15,14 @@
 - Geometria das órbitas armazenada em cache para reduzir alocações por quadro.
 - Permissões de localização aproximada e precisa; latitude, longitude e precisão reportada são exibidas quando disponíveis.
 
+## Arquitetura nativa e desempenho
+- Kotlin mantém a interface, ciclo de vida, permissões e sensores/localização.
+- C++ via Android NDK/JNI executa o cálculo de posições orbitais e consulta o identificador do renderer gráfico quando o contexto OpenGL está ativo.
+- C fornece a rotina matemática de órbitas chamada pelo módulo C++.
+- OpenGL ES 2.0 envia os comandos gráficos ao driver da GPU; o driver e o Android decidem a execução na GPU disponível.
+- ABI incluídas: ARM64, ARMv7 e x86_64. O Android/driver pode impor limites de memória, temperatura, frequência e recursos gráficos; o app deve reduzir qualidade e carga quando necessário.
+- C# não foi incorporado nesta etapa: este app é Android nativo Gradle/Kotlin. Adicionar .NET para Android só para misturar linguagens aumentaria o tamanho e o consumo sem acelerar automaticamente a GPU. Pode ser avaliado futuramente como módulo separado se houver uma função concreta que justifique o runtime .NET.
+
 ## Próximas etapas
 1. Aplicar texturas planetárias de alta resolução e mapas de relevo quando houver dados adequados.
 2. Melhorar os modelos físicos: escalas, inclinações, rotação, luas e anéis.
