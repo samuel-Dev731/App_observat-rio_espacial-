@@ -28,8 +28,17 @@ import java.util.Locale
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
+private class NativeBridge {
+    external fun computePlanetPositions(seconds: Float, output: FloatArray)
+    external fun getGpuRenderer(): String
+    external fun getCpuCoreCount(): Int
+
+    companion object { init { System.loadLibrary("observatorio_native") } }
+}
+
 class MainActivity : Activity(), LocationListener {
     private lateinit var glView: GLSurfaceView
+    private lateinit var nativeBridge: NativeBridge
     private lateinit var renderer: SpaceRenderer
     private lateinit var locationLabel: TextView
     private lateinit var locationManager: LocationManager
@@ -42,9 +51,10 @@ class MainActivity : Activity(), LocationListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val root = FrameLayout(this)
+        nativeBridge = NativeBridge()
         glView = GLSurfaceView(this).apply {
             setEGLContextClientVersion(2)
-            renderer = SpaceRenderer()
+            renderer = SpaceRenderer(nativeBridge)
             setRenderer(renderer)
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
             preserveEGLContextOnPause = true
@@ -157,7 +167,8 @@ class MainActivity : Activity(), LocationListener {
     }
 }
 
-private class SpaceRenderer : GLSurfaceView.Renderer {
+private class SpaceRenderer(private val nativeBridge: NativeBridge) : GLSurfaceView.Renderer {
+    private val nativePositions = FloatArray(15)
     private lateinit var sphere: SphereMesh
     private lateinit var stars: FloatBuffer
     private val orbitBuffers = HashMap<Float, FloatBuffer>()
@@ -229,6 +240,7 @@ private class SpaceRenderer : GLSurfaceView.Renderer {
         lightHandle = GLES20.glGetUniformLocation(program, "uLight")
         lightingHandle = GLES20.glGetUniformLocation(program, "uLighting")
         pointSizeHandle = GLES20.glGetUniformLocation(program, "uPointSize")
+        android.util.Log.i("Observatorio3D", nativeBridge.getGpuRenderer() + " | núcleos lógicos de CPU: " + nativeBridge.getCpuCoreCount())
         sphere = SphereMesh(40, 56)
         val random = Random(2026)
         val starData = FloatArray(1800 * 3) { 0f }
@@ -279,16 +291,17 @@ private class SpaceRenderer : GLSurfaceView.Renderer {
         drawOrbit(6.2f, 0.20f, 0.25f, 0.38f)
         drawOrbit(8.2f, 0.20f, 0.25f, 0.38f)
         drawPlanet(0f, 0f, 0f, 0.72f, 1.0f, 0.66f, 0.20f, false)
-        val bodies = arrayOf(
-            floatArrayOf(2.2f, 0.12f, 0.0f, 0.15f, 0.15f, 0.17f, 0.92f),
-            floatArrayOf(3.3f, -0.22f, 0.0f, 0.38f, 0.29f, 0.12f, 1.0f),
-            floatArrayOf(4.6f, 0.12f, 0.0f, 0.18f, 0.43f, 0.95f, 1.0f),
-            floatArrayOf(6.2f, -0.16f, 0.0f, 0.72f, 0.25f, 0.12f, 0.88f),
-            floatArrayOf(8.2f, 0.12f, 0.0f, 0.75f, 0.59f, 0.34f, 1.25f)
+        nativeBridge.computePlanetPositions((System.nanoTime() / 1_000_000_000.0).toFloat(), nativePositions)
+        val planetStyle = arrayOf(
+            floatArrayOf(0.92f, 0.15f, 0.15f, 0.17f),
+            floatArrayOf(1.0f, 0.38f, 0.29f, 0.12f),
+            floatArrayOf(1.0f, 0.18f, 0.43f, 0.95f),
+            floatArrayOf(0.88f, 0.72f, 0.25f, 0.12f),
+            floatArrayOf(1.25f, 0.75f, 0.59f, 0.34f)
         )
-        for ((index, b) in bodies.withIndex()) {
-            val angle = (index * 1.13f) + yaw * 0.25f
-            drawPlanet(cos(angle) * b[0], b[1], sin(angle) * b[0], b[6], b[3], b[4], b[5], true)
+        for (index in 0 until 5) {
+            val style = planetStyle[index]
+            drawPlanet(nativePositions[index * 3], nativePositions[index * 3 + 1], nativePositions[index * 3 + 2], style[0], style[1], style[2], style[3], true)
         }
     }
 
