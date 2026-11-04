@@ -24,8 +24,8 @@ object AstronomyDataService {
         executor.execute {
             try {
                 val start = Instant.now().truncatedTo(ChronoUnit.HOURS)
-                val stop = start.plus(24, ChronoUnit.HOURS)
-                val output = FloatArray(8 * 25 * 3)
+                val stop = start.plus(360, ChronoUnit.DAYS)
+                val output = FloatArray(8 * 73 * 3)
                 bodyIds.forEachIndexed { bodyIndex, id ->
                     val url = Uri.parse("https://ssd.jpl.nasa.gov/api/horizons.api").buildUpon()
                         .appendQueryParameter("format", "json")
@@ -36,7 +36,7 @@ object AstronomyDataService {
                         .appendQueryParameter("CENTER", "'500@10'")
                         .appendQueryParameter("START_TIME", "'${dateFormat.format(start)}'")
                         .appendQueryParameter("STOP_TIME", "'${dateFormat.format(stop)}'")
-                        .appendQueryParameter("STEP_SIZE", "'1 h'")
+                        .appendQueryParameter("STEP_SIZE", "'5 d'")
                         .appendQueryParameter("VEC_TABLE", "1")
                         .appendQueryParameter("CSV_FORMAT", "YES")
                         .appendQueryParameter("OUT_UNITS", "AU-D")
@@ -45,16 +45,16 @@ object AstronomyDataService {
                     if (json.has("error")) throw IllegalStateException(json.optString("error"))
                     val result = json.optString("result")
                     val rows = parseVectorRows(result)
-                    if (rows.size < 25) throw IllegalStateException("JPL retornou poucas amostras para ${bodyNames[bodyIndex]}")
-                    for (step in 0 until 25) {
+                    if (rows.size < 73) throw IllegalStateException("JPL retornou poucas amostras para ${bodyNames[bodyIndex]}")
+                    for (step in 0 until 73) {
                         val p = rows[step.coerceAtMost(rows.lastIndex)]
-                        val offset = (bodyIndex * 25 + step) * 3
+                        val offset = (bodyIndex * 73 + step) * 3
                         output[offset] = p[0]
                         output[offset + 1] = p[1]
                         output[offset + 2] = p[2]
                     }
                 }
-                callback(output, "Posições orbitais recebidas do NASA/JPL Horizons • janela de 24 horas")
+                callback(output, "Posições orbitais recebidas do NASA/JPL Horizons • janela de 360 dias")
             } catch (e: Exception) {
                 callback(null, "Dados JPL indisponíveis: ${e.message ?: "erro de conexão"}")
             }
