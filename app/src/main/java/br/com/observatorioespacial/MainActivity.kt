@@ -291,7 +291,7 @@ private class SpaceRenderer(private val nativeBridge: NativeBridge) : GLSurfaceV
         drawOrbit(6.2f, 0.20f, 0.25f, 0.38f)
         drawOrbit(8.2f, 0.20f, 0.25f, 0.38f)
         drawPlanet(0f, 0f, 0f, 0.72f, 1.0f, 0.66f, 0.20f, false)
-        nativeBridge.computePlanetPositions((System.nanoTime() / 1_000_000_000.0).toFloat(), nativePositions)
+        nativeBridge.computePlanetPositions(((System.nanoTime() / 1_000_000_000L) % 100000L).toFloat(), nativePositions)
         val planetStyle = arrayOf(
             floatArrayOf(0.92f, 0.15f, 0.15f, 0.17f),
             floatArrayOf(1.0f, 0.38f, 0.29f, 0.12f),
