@@ -22,7 +22,7 @@ object ObjectCatalogService {
         executor.execute {
             try {
                 val now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MINUTES)
-                val stop = now.plusSeconds(3600)
+                val stop = now.plusSeconds(24 * 3600L)
                 val site = String.format(java.util.Locale.US, "%.6f,%.6f,%.3f", longitude, latitude, altitudeMeters / 1000.0)
                 val url = Uri.parse("https://ssd.jpl.nasa.gov/api/horizons.api").buildUpon()
                     .appendQueryParameter("format", "json")
@@ -46,19 +46,31 @@ object ObjectCatalogService {
                 val start = result.indexOf("\$\$SOE")
                 val end = result.indexOf("\$\$EOE")
                 if (start < 0 || end <= start) throw IllegalStateException("O JPL não retornou uma posição para esse nome.")
-                val row = result.substring(start + 5, end).lineSequence().firstOrNull { it.contains(",") }
-                    ?: throw IllegalStateException("Não há amostra de posição disponível.")
-                val fields = row.split(',').map { it.trim().trim('"') }
-                if (fields.size < 6) throw IllegalStateException("Formato de posição inesperado.")
+                val rows = result.substring(start + 5, end).lineSequence()
+                    .filter { it.contains(",") }
+                    .map { line -> line.split(',').map { it.trim().trim('"') } }
+                    .filter { it.size >= 5 }
+                    .toList()
+                val fields = rows.firstOrNull() ?: throw IllegalStateException("Não há amostra de posição disponível.")
+                val visibleRows = rows.filter { (it.getOrNull(4)?.toDoubleOrNull() ?: -90.0) > 0.0 }
+                val firstVisible = visibleRows.firstOrNull()
+                val lastVisible = visibleRows.lastOrNull()
+                val blueLabel = if (firstVisible != null && lastVisible != null) {
+                    "VISÍVEL ATÉ: ${lastVisible[0]} UTC"
+                } else {
+                    "VISIBILIDADE: não acima do horizonte nas próximas 24 horas"
+                }
+                val nextWindow = firstVisible?.get(0)?.plus(" UTC") ?: "não prevista nas próximas 24 horas"
                 callback(
-                    "Objeto: $name\n" +
-                    "Fonte: NASA/JPL Horizons\n" +
+                    "$blueLabel\n" +
+                    "PRÓXIMA VISIBILIDADE: $name • $nextWindow\n" +
+                    "Fonte: NASA/JPL Horizons • previsão para as próximas 24 horas\n" +
                     "Data/hora UTC: ${fields[0]}\n" +
-                    "Ascensão reta: ${fields.getOrElse(2) { "—" }}°\n" +
-                    "Declinação: ${fields.getOrElse(3) { "—" }}°\n" +
-                    "Azimute: ${fields.getOrElse(4) { "—" }}°\n" +
-                    "Elevação acima do horizonte: ${fields.getOrElse(5) { "—" }}°\n\n" +
-                    "Posição calculada para sua localização informada pelo GPS. Efeméride calculada, não imagem ao vivo."
+                    "Ascensão reta: ${fields.getOrElse(1) { "—" }}°\n" +
+                    "Declinação: ${fields.getOrElse(2) { "—" }}°\n" +
+                    "Azimute: ${fields.getOrElse(3) { "—" }}°\n" +
+                    "Elevação acima do horizonte: ${fields.getOrElse(4) { "—" }}°\n\n" +
+                    "Posição calculada para sua localização GPS. Amostras de 1 hora, horários UTC; previsão aproximada, não vídeo ao vivo."
                 )
             } catch (e: Exception) {
                 callback("Não foi possível localizar esse objeto no JPL Horizons. Confira o nome ou tente uma designação oficial.\n\nDetalhe: ${e.message ?: "erro de conexão"}")
