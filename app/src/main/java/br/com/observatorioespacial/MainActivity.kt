@@ -75,8 +75,8 @@ private class UniverseView(context: android.content.Context) : View(context) {
         )
         planets.forEachIndexed { i, p ->
             val angle = i * 1.05f + 0.55f
-            val x = cx + cos(angle) * p.first
-            val y = cy + sin(angle) * p.first * 0.48f
+            val x = cx + (cos(angle.toDouble()) * p.first).toFloat()
+            val y = cy + (sin(angle.toDouble()) * p.first * 0.48f).toFloat()
             paint.color = p.second
             canvas.drawCircle(x, y, p.third, paint)
         }
