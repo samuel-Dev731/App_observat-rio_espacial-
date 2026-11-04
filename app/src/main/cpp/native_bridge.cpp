@@ -12,7 +12,10 @@ namespace {
 struct Vec3 { float x,y,z; };
 GLuint program=0, sphereVbo=0, sphereNbo=0, sphereIbo=0, starVbo=0, milkyWayVbo=0;
 GLint aPosition=-1,aNormal=-1,uMvp=-1,uModel=-1,uColor=-1,uLight=-1,uLighting=-1,uPointSize=-1;
-GLsizei sphereIndexCount=0, starCount=0, milkyWayCount=0;\nconstexpr int PLANET_COUNT=8, EPHEMERIS_STEPS=25;\nstd::vector<Vec3> ephemeris(PLANET_COUNT*EPHEMERIS_STEPS);\nbool ephemerisReady=false;
+GLsizei sphereIndexCount=0, starCount=0, milkyWayCount=0;
+constexpr int PLANET_COUNT=8, EPHEMERIS_STEPS=25;
+std::vector<Vec3> ephemeris(PLANET_COUNT*EPHEMERIS_STEPS);
+bool ephemerisReady=false;
 int surfaceW=1,surfaceH=1,quality=1;
 std::string gpuInfo="GPU não identificada";
 std::vector<GLuint> orbitVbos;
@@ -88,7 +91,9 @@ void drawSphere(float x,float y,float z,float radius,float r,float g,float b,boo
 }
 void drawLines(GLuint buffer,GLsizei count,float r,float g,float b){identity(model);setMatrices(model);glUniform4f(uColor,r,g,b,1);glUniform1i(uLighting,0);glUniform1f(uPointSize,1);glBindBuffer(GL_ARRAY_BUFFER,buffer);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDisableVertexAttribArray(aNormal);glVertexAttrib3f(aNormal,0,1,0);glDrawArrays(GL_LINE_STRIP,0,count);glDisableVertexAttribArray(aPosition);}
 void drawStars(){identity(model);setMatrices(model);glUniform4f(uColor,.78f,.86f,1,1);glUniform1i(uLighting,0);glUniform1f(uPointSize,quality>=2?1.8f:1.3f);glBindBuffer(GL_ARRAY_BUFFER,starVbo);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDisableVertexAttribArray(aNormal);glVertexAttrib3f(aNormal,0,1,0);glDrawArrays(GL_POINTS,0,starCount);glDisableVertexAttribArray(aPosition);}
-void drawMilkyWay(){identity(model);setMatrices(model);glUniform4f(uColor,.20f,.25f,.48f,.42f);glUniform1i(uLighting,0);glUniform1f(uPointSize,quality>=2?2.0f:1.35f);glBindBuffer(GL_ARRAY_BUFFER,milkyWayVbo);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDisableVertexAttribArray(aNormal);glVertexAttrib3f(aNormal,0,1,0);glDrawArrays(GL_POINTS,0,milkyWayCount);glDisableVertexAttribArray(aPosition);}\nvoid drawEphemerisOrbit(int body){std::vector<float> vertices;vertices.reserve(EPHEMERIS_STEPS*3);for(int i=0;i<EPHEMERIS_STEPS;i++){const Vec3 p=ephemeris[body*EPHEMERIS_STEPS+i];vertices.insert(vertices.end(),{p.x*.62f,p.y*.62f,p.z*.62f});}GLuint b=0;glGenBuffers(1,&b);glBindBuffer(GL_ARRAY_BUFFER,b);glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(float),vertices.data(),GL_DYNAMIC_DRAW);identity(model);setMatrices(model);const float colors[8][3]={{.65f,.58f,.45f},{.75f,.60f,.42f},{.30f,.55f,1.f},{.90f,.35f,.20f},{.85f,.68f,.38f},{.75f,.72f,.60f},{.35f,.75f,.82f},{.30f,.40f,.90f}};glUniform4f(uColor,colors[body][0],colors[body][1],colors[body][2],.8f);glUniform1i(uLighting,0);glUniform1f(uPointSize,1.f);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDrawArrays(GL_LINE_STRIP,0,EPHEMERIS_STEPS);glDisableVertexAttribArray(aPosition);glDeleteBuffers(1,&b);}\nvoid releaseObjects(){GLuint ids[]={sphereVbo,sphereNbo,sphereIbo,starVbo,milkyWayVbo};glDeleteBuffers(5,ids);for(GLuint b:orbitVbos)glDeleteBuffers(1,&b);orbitVbos.clear();if(program)glDeleteProgram(program);program=0;ephemerisReady=false;}
+void drawMilkyWay(){identity(model);setMatrices(model);glUniform4f(uColor,.20f,.25f,.48f,.42f);glUniform1i(uLighting,0);glUniform1f(uPointSize,quality>=2?2.0f:1.35f);glBindBuffer(GL_ARRAY_BUFFER,milkyWayVbo);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDisableVertexAttribArray(aNormal);glVertexAttrib3f(aNormal,0,1,0);glDrawArrays(GL_POINTS,0,milkyWayCount);glDisableVertexAttribArray(aPosition);}
+void drawEphemerisOrbit(int body){std::vector<float> vertices;vertices.reserve(EPHEMERIS_STEPS*3);for(int i=0;i<EPHEMERIS_STEPS;i++){const Vec3 p=ephemeris[body*EPHEMERIS_STEPS+i];vertices.insert(vertices.end(),{p.x*.62f,p.y*.62f,p.z*.62f});}GLuint b=0;glGenBuffers(1,&b);glBindBuffer(GL_ARRAY_BUFFER,b);glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(float),vertices.data(),GL_DYNAMIC_DRAW);identity(model);setMatrices(model);const float colors[8][3]={{.65f,.58f,.45f},{.75f,.60f,.42f},{.30f,.55f,1.f},{.90f,.35f,.20f},{.85f,.68f,.38f},{.75f,.72f,.60f},{.35f,.75f,.82f},{.30f,.40f,.90f}};glUniform4f(uColor,colors[body][0],colors[body][1],colors[body][2],.8f);glUniform1i(uLighting,0);glUniform1f(uPointSize,1.f);glEnableVertexAttribArray(aPosition);glVertexAttribPointer(aPosition,3,GL_FLOAT,GL_FALSE,0,0);glDrawArrays(GL_LINE_STRIP,0,EPHEMERIS_STEPS);glDisableVertexAttribArray(aPosition);glDeleteBuffers(1,&b);}
+void releaseObjects(){GLuint ids[]={sphereVbo,sphereNbo,sphereIbo,starVbo,milkyWayVbo};glDeleteBuffers(5,ids);for(GLuint b:orbitVbos)glDeleteBuffers(1,&b);orbitVbos.clear();if(program)glDeleteProgram(program);program=0;ephemerisReady=false;}
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -118,11 +123,22 @@ Java_br_com_observatorioespacial_NativeBridge_nativeRender(JNIEnv*,jobject,jfloa
  if(!program)return;glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);glUseProgram(program);
  float distance=24.f/std::max(.65f,std::min(2.6f,zoom));Vec3 eye={std::sin(yaw)*distance,5.f+pitch*10.f,std::cos(yaw)*distance};
  lookAt(view,eye,{0,0,0},{0,1,0});multiply(vp,projection,view);
- drawMilkyWay();drawStars();for(size_t i=0;i<orbitVbos.size();i++)drawLines(orbitVbos[i],361,.20f,.25f,.38f);
- drawSphere(0,0,0,.72f,1.f,.66f,.20f,false);
- float p[15]={};observatorio_compute_orbits(seconds,p,15);
- const float styles[5][4]={{.92f,.15f,.15f,.17f},{1.f,.38f,.29f,.12f},{1.f,.18f,.43f,.95f},{.88f,.72f,.25f,.12f},{1.25f,.75f,.59f,.34f}};
- for(int i=0;i<5;i++)drawSphere(p[i*3],p[i*3+1],p[i*3+2],styles[i][0],styles[i][1],styles[i][2],styles[i][3],true);
+ drawMilkyWay();drawStars();drawSphere(0,0,0,.72f,1.f,.66f,.20f,false);
+ if(ephemerisReady){
+  const float colors[8][3]={{.65f,.58f,.45f},{.75f,.60f,.42f},{.30f,.55f,1.f},{.90f,.35f,.20f},{.85f,.68f,.38f},{.75f,.72f,.60f},{.35f,.75f,.82f},{.30f,.40f,.90f}};
+  const float sizes[8]={.12f,.18f,.20f,.16f,.48f,.40f,.31f,.30f};
+  float h=std::fmod(seconds*.2f,24.f);int i0=(int)h;float f=h-i0;
+  for(int i=0;i<PLANET_COUNT;i++){
+   drawEphemerisOrbit(i);
+   Vec3 a=ephemeris[i*EPHEMERIS_STEPS+i0],b=ephemeris[i*EPHEMERIS_STEPS+std::min(i0+1,EPHEMERIS_STEPS-1)];
+   float x=(a.x+(b.x-a.x)*f)*.62f,y=(a.y+(b.y-a.y)*f)*.62f,z=(a.z+(b.z-a.z)*f)*.62f;
+   drawSphere(x,y,z,sizes[i],colors[i][0],colors[i][1],colors[i][2],true);
+  }
+ }else{
+  float p[15]={};observatorio_compute_orbits(seconds,p,15);
+  const float styles[5][4]={{.92f,.15f,.15f,.17f},{1.f,.38f,.29f,.12f},{1.f,.18f,.43f,.95f},{.88f,.72f,.25f,.12f},{1.25f,.75f,.59f,.34f}};
+  for(int i=0;i<5;i++)drawSphere(p[i*3],p[i*3+1],p[i*3+2],styles[i][0],styles[i][1],styles[i][2],styles[i][3],true);
+ }
 }
 extern "C" JNIEXPORT jstring JNICALL
 Java_br_com_observatorioespacial_NativeBridge_getGpuRenderer(JNIEnv *env,jobject){return env->NewStringUTF(gpuInfo.c_str());}
