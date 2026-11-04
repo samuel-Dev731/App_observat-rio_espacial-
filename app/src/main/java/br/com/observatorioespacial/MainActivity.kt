@@ -2,6 +2,7 @@ package br.com.observatorioespacial
 
 import android.Manifest
 import android.app.Activity
+import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -9,27 +10,20 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.opengl.GLSurfaceView
-import android.opengl.GLES20
-import android.opengl.Matrix
 import android.os.Bundle
+import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.TextView
-import android.view.Gravity
-import android.view.View
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.random.Random
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.FloatBuffer
-import java.nio.ShortBuffer
 import java.util.Locale
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import kotlin.math.sqrt
 
 private class NativeBridge {
-    external fun computePlanetPositions(seconds: Float, output: FloatArray)
+    external fun nativeInit(memoryClassMb: Int)
+    external fun nativeResize(width: Int, height: Int)
+    external fun nativeRender(seconds: Float, zoom: Float, yaw: Float, pitch: Float)
     external fun getGpuRenderer(): String
     external fun getCpuCoreCount(): Int
 
@@ -39,8 +33,9 @@ private class NativeBridge {
 class MainActivity : Activity(), LocationListener {
     private lateinit var glView: GLSurfaceView
     private lateinit var nativeBridge: NativeBridge
-    private lateinit var renderer: SpaceRenderer
+    private lateinit var spaceRenderer: NativeSpaceRenderer
     private lateinit var locationLabel: TextView
+    private lateinit var graphicsLabel: TextView
     private lateinit var locationManager: LocationManager
     private var previousTouchX = 0f
     private var previousTouchY = 0f
@@ -50,26 +45,35 @@ class MainActivity : Activity(), LocationListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val root = FrameLayout(this)
         nativeBridge = NativeBridge()
+        val root = FrameLayout(this)
         glView = GLSurfaceView(this).apply {
+            // ES 2.0 é o perfil mínimo garantido pelo manifesto.
+            // Em GPUs ES 3.x, o driver mantém compatibilidade ES 2.0.
             setEGLContextClientVersion(2)
-            renderer = SpaceRenderer(nativeBridge)
-            setRenderer(renderer)
+            spaceRenderer = NativeSpaceRenderer(nativeBridge) { info ->
+                runOnUiThread { graphicsLabel.text = info }
+            }
+            setRenderer(spaceRenderer)
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
             preserveEGLContextOnPause = true
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> { previousTouchX = event.x; previousTouchY = event.y; previousPinchDistance = 0f }
+                    MotionEvent.ACTION_DOWN -> {
+                        previousTouchX = event.x
+                        previousTouchY = event.y
+                        previousPinchDistance = 0f
+                    }
                     MotionEvent.ACTION_POINTER_DOWN -> if (event.pointerCount >= 2) previousPinchDistance = pointerDistance(event)
                     MotionEvent.ACTION_MOVE -> {
                         if (event.pointerCount >= 2) {
                             val current = pointerDistance(event)
-                            if (previousPinchDistance > 0f && current > 0f) renderer.changeView(current / previousPinchDistance, 0f, 0f)
+                            if (previousPinchDistance > 0f && current > 0f) spaceRenderer.changeView(current / previousPinchDistance, 0f, 0f)
                             previousPinchDistance = current
                         } else {
-                            renderer.changeView(1f, event.x - previousTouchX, event.y - previousTouchY)
-                            previousTouchX = event.x; previousTouchY = event.y
+                            spaceRenderer.changeView(1f, event.x - previousTouchX, event.y - previousTouchY)
+                            previousTouchX = event.x
+                            previousTouchY = event.y
                         }
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> previousPinchDistance = 0f
@@ -78,14 +82,26 @@ class MainActivity : Activity(), LocationListener {
             }
         }
         root.addView(glView, FrameLayout.LayoutParams(-1, -1))
+
         val title = TextView(this).apply {
-            text = "OBSERVATÓRIO ESPACIAL  •  3D"
+            text = "OBSERVATÓRIO ESPACIAL • MOTOR 3D NATIVO"
             setTextColor(Color.WHITE)
-            textSize = 16f
-            setPadding(20, 24, 20, 12)
+            textSize = 15f
+            setPadding(18, 24, 18, 8)
             setShadowLayer(8f, 0f, 1f, Color.BLACK)
         }
         root.addView(title, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+
+        graphicsLabel = TextView(this).apply {
+            text = "Detectando GPU e perfil gráfico…"
+            setTextColor(Color.rgb(170, 210, 255))
+            textSize = 10f
+            setPadding(18, 4, 18, 4)
+            setShadowLayer(6f, 0f, 1f, Color.BLACK)
+        }
+        val graphicsParams = FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = 62 }
+        root.addView(graphicsLabel, graphicsParams)
+
         locationLabel = TextView(this).apply {
             text = "Solicitando localização…"
             setTextColor(Color.rgb(190, 215, 255))
@@ -102,7 +118,7 @@ class MainActivity : Activity(), LocationListener {
     private fun pointerDistance(event: MotionEvent): Float {
         val dx = event.getX(0) - event.getX(1)
         val dy = event.getY(0) - event.getY(1)
-        return kotlin.math.sqrt(dx * dx + dy * dy)
+        return sqrt(dx * dx + dy * dy)
     }
 
     private fun hasLocationPermission(): Boolean =
@@ -167,194 +183,34 @@ class MainActivity : Activity(), LocationListener {
     }
 }
 
-private class SpaceRenderer(private val nativeBridge: NativeBridge) : GLSurfaceView.Renderer {
-    private val nativePositions = FloatArray(15)
-    private lateinit var sphere: SphereMesh
-    private lateinit var stars: FloatBuffer
-    private val orbitBuffers = HashMap<Float, FloatBuffer>()
-    private var program = 0
-    private var positionHandle = 0
-    private var normalHandle = 0
-    private var mvpHandle = 0
-    private var modelHandle = 0
-    private var colorHandle = 0
-    private var lightHandle = 0
-    private var lightingHandle = 0
-    private var pointSizeHandle = 0
-    private val projection = FloatArray(16)
-    private val view = FloatArray(16)
-    private val model = FloatArray(16)
-    private val mvp = FloatArray(16)
-    private val vp = FloatArray(16)
+private class NativeSpaceRenderer(
+    private val bridge: NativeBridge,
+    private val onProfile: (String) -> Unit
+) : GLSurfaceView.Renderer {
     @Volatile private var zoom = 1f
     @Volatile private var yaw = 0f
     @Volatile private var pitch = 0.18f
-    private var surfaceWidth = 1
-    private var surfaceHeight = 1
+    private var startNanos = 0L
+    private var memoryClassMb = 128
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        GLES20.glClearColor(0.008f, 0.012f, 0.035f, 1f)
-        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
-        GLES20.glEnable(GLES20.GL_BLEND)
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-        val vertexShader = """
-            uniform mat4 uMVP;
-            uniform mat4 uModel;
-            uniform float uPointSize;
-            attribute vec3 aPosition;
-            attribute vec3 aNormal;
-            varying vec3 vNormal;
-            varying vec3 vPosition;
-            void main() {
-                vec4 world = uModel * vec4(aPosition, 1.0);
-                vPosition = world.xyz;
-                vNormal = mat3(uModel) * aNormal;
-                gl_Position = uMVP * vec4(aPosition, 1.0);
-                gl_PointSize = uPointSize;
-            }
-        """.trimIndent()
-        val fragmentShader = """
-            precision mediump float;
-            uniform vec4 uColor;
-            uniform vec3 uLight;
-            uniform int uLighting;
-            varying vec3 vNormal;
-            varying vec3 vPosition;
-            void main() {
-                float shade = 1.0;
-                if (uLighting == 1) {
-                    vec3 n = normalize(vNormal);
-                    vec3 l = normalize(uLight - vPosition);
-                    float diffuse = max(dot(n, l), 0.0);
-                    shade = 0.20 + diffuse * 0.90;
-                }
-                gl_FragColor = vec4(uColor.rgb * shade, uColor.a);
-            }
-        """.trimIndent()
-        program = linkProgram(compileShader(GLES20.GL_VERTEX_SHADER, vertexShader), compileShader(GLES20.GL_FRAGMENT_SHADER, fragmentShader))
-        positionHandle = GLES20.glGetAttribLocation(program, "aPosition")
-        normalHandle = GLES20.glGetAttribLocation(program, "aNormal")
-        mvpHandle = GLES20.glGetUniformLocation(program, "uMVP")
-        modelHandle = GLES20.glGetUniformLocation(program, "uModel")
-        colorHandle = GLES20.glGetUniformLocation(program, "uColor")
-        lightHandle = GLES20.glGetUniformLocation(program, "uLight")
-        lightingHandle = GLES20.glGetUniformLocation(program, "uLighting")
-        pointSizeHandle = GLES20.glGetUniformLocation(program, "uPointSize")
-        android.util.Log.i("Observatorio3D", nativeBridge.getGpuRenderer() + " | núcleos lógicos de CPU: " + nativeBridge.getCpuCoreCount())
-        sphere = SphereMesh(40, 56)
-        val random = Random(2026)
-        val starData = FloatArray(1800 * 3) { 0f }
-        for (i in 0 until 1800) {
-            val theta = random.nextFloat() * Math.PI.toFloat() * 2f
-            val z = random.nextFloat() * 2f - 1f
-            val radius = 38f + random.nextFloat() * 12f
-            val ring = kotlin.math.sqrt(1f - z * z)
-            starData[i * 3] = radius * ring * cos(theta)
-            starData[i * 3 + 1] = radius * z
-            starData[i * 3 + 2] = radius * ring * sin(theta)
-        }
-        stars = floatBuffer(starData)
-        for (radius in floatArrayOf(2.2f, 3.3f, 4.6f, 6.2f, 8.2f)) {
-            val orbitData = FloatArray(361 * 3)
-            for (i in 0..360) {
-                val angle = i * Math.PI.toFloat() / 180f
-                orbitData[i * 3] = cos(angle) * radius
-                orbitData[i * 3 + 1] = 0f
-                orbitData[i * 3 + 2] = sin(angle) * radius
-            }
-            orbitBuffers[radius] = floatBuffer(orbitData)
-        }
+        val app = currentApplicationContext
+        memoryClassMb = if (app != null) {
+            (app.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).memoryClass
+        } else 128
+        bridge.nativeInit(memoryClassMb)
+        startNanos = System.nanoTime()
+        val profile = bridge.getGpuRenderer() + " • CPU: " + bridge.getCpuCoreCount() + " núcleos lógicos • RAM app: " + memoryClassMb + " MB"
+        onProfile(profile)
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-        surfaceWidth = width.coerceAtLeast(1)
-        surfaceHeight = height.coerceAtLeast(1)
-        GLES20.glViewport(0, 0, surfaceWidth, surfaceHeight)
-        Matrix.perspectiveM(projection, 0, 48f, surfaceWidth.toFloat() / surfaceHeight, 0.1f, 120f)
+        bridge.nativeResize(width, height)
     }
 
     override fun onDrawFrame(gl: GL10?) {
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
-        GLES20.glUseProgram(program)
-        val distance = 24f / zoom.coerceIn(0.65f, 2.6f)
-        val eyeX = sin(yaw) * distance
-        val eyeZ = cos(yaw) * distance
-        val eyeY = 5f + pitch * 10f
-        Matrix.setLookAtM(view, 0, eyeX, eyeY, eyeZ, 0f, 0f, 0f, 0f, 1f, 0f)
-        Matrix.multiplyMM(vp, 0, projection, 0, view, 0)
-
-        Matrix.setIdentityM(model, 0)
-        drawPoints(stars, 1800, 1.6f, 0.78f, 0.86f, 1f)
-        drawOrbit(2.2f, 0.20f, 0.25f, 0.38f)
-        drawOrbit(3.3f, 0.20f, 0.25f, 0.38f)
-        drawOrbit(4.6f, 0.20f, 0.25f, 0.38f)
-        drawOrbit(6.2f, 0.20f, 0.25f, 0.38f)
-        drawOrbit(8.2f, 0.20f, 0.25f, 0.38f)
-        drawPlanet(0f, 0f, 0f, 0.72f, 1.0f, 0.66f, 0.20f, false)
-        nativeBridge.computePlanetPositions(((System.nanoTime() / 1_000_000_000L) % 100000L).toFloat(), nativePositions)
-        val planetStyle = arrayOf(
-            floatArrayOf(0.92f, 0.15f, 0.15f, 0.17f),
-            floatArrayOf(1.0f, 0.38f, 0.29f, 0.12f),
-            floatArrayOf(1.0f, 0.18f, 0.43f, 0.95f),
-            floatArrayOf(0.88f, 0.72f, 0.25f, 0.12f),
-            floatArrayOf(1.25f, 0.75f, 0.59f, 0.34f)
-        )
-        for (index in 0 until 5) {
-            val style = planetStyle[index]
-            drawPlanet(nativePositions[index * 3], nativePositions[index * 3 + 1], nativePositions[index * 3 + 2], style[0], style[1], style[2], style[3], true)
-        }
-    }
-
-    private fun drawPlanet(x: Float, y: Float, z: Float, radius: Float, red: Float, green: Float, blue: Float, lit: Boolean) {
-        Matrix.setIdentityM(model, 0)
-        Matrix.translateM(model, 0, x, y, z)
-        Matrix.scaleM(model, 0, radius, radius, radius)
-        drawMesh(sphere, model, red, green, blue, if (lit) 1 else 0)
-    }
-
-    private fun drawMesh(mesh: SphereMesh, modelMatrix: FloatArray, r: Float, g: Float, b: Float, lighting: Int) {
-        Matrix.multiplyMM(mvp, 0, vp, 0, modelMatrix, 0)
-        GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
-        GLES20.glUniformMatrix4fv(modelHandle, 1, false, modelMatrix, 0)
-        GLES20.glUniform4f(colorHandle, r, g, b, 1f)
-        GLES20.glUniform3f(lightHandle, -5f, 8f, 7f)
-        GLES20.glUniform1i(lightingHandle, lighting)
-        GLES20.glUniform1f(pointSizeHandle, 1f)
-        mesh.draw(positionHandle, normalHandle)
-    }
-
-    private fun drawPoints(buffer: FloatBuffer, count: Int, size: Float, r: Float, g: Float, b: Float) {
-        Matrix.setIdentityM(model, 0)
-        Matrix.multiplyMM(mvp, 0, vp, 0, model, 0)
-        GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
-        GLES20.glUniformMatrix4fv(modelHandle, 1, false, model, 0)
-        GLES20.glUniform4f(colorHandle, r, g, b, 1f)
-        GLES20.glUniform1i(lightingHandle, 0)
-        GLES20.glUniform1f(pointSizeHandle, size)
-        buffer.position(0)
-        GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, buffer)
-        GLES20.glDisableVertexAttribArray(normalHandle)
-        GLES20.glVertexAttrib3f(normalHandle, 0f, 1f, 0f)
-        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, count)
-        GLES20.glDisableVertexAttribArray(positionHandle)
-    }
-
-    private fun drawOrbit(radius: Float, r: Float, g: Float, b: Float) {
-        val buffer = orbitBuffers[radius] ?: return
-        Matrix.setIdentityM(model, 0)
-        Matrix.multiplyMM(mvp, 0, vp, 0, model, 0)
-        GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
-        GLES20.glUniformMatrix4fv(modelHandle, 1, false, model, 0)
-        GLES20.glUniform4f(colorHandle, r, g, b, 1f)
-        GLES20.glUniform1i(lightingHandle, 0)
-        GLES20.glUniform1f(pointSizeHandle, 1f)
-        GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, buffer)
-        GLES20.glDisableVertexAttribArray(normalHandle)
-        GLES20.glVertexAttrib3f(normalHandle, 0f, 1f, 0f)
-        GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, 361)
-        GLES20.glDisableVertexAttribArray(positionHandle)
+        val seconds = ((System.nanoTime() - startNanos) / 1_000_000_000.0).toFloat()
+        bridge.nativeRender(seconds, zoom, yaw, pitch)
     }
 
     fun changeView(scale: Float, dx: Float, dy: Float) {
@@ -363,83 +219,8 @@ private class SpaceRenderer(private val nativeBridge: NativeBridge) : GLSurfaceV
         pitch = (pitch + dy * 0.004f).coerceIn(-0.45f, 0.75f)
     }
 
-    private fun compileShader(type: Int, source: String): Int {
-        val shader = GLES20.glCreateShader(type)
-        GLES20.glShaderSource(shader, source)
-        GLES20.glCompileShader(shader)
-        val status = IntArray(1)
-        GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, status, 0)
-        if (status[0] == 0) {
-            val message = GLES20.glGetShaderInfoLog(shader)
-            GLES20.glDeleteShader(shader)
-            throw RuntimeException("Falha no shader: $message")
-        }
-        return shader
-    }
-
-    private fun linkProgram(vertex: Int, fragment: Int): Int {
-        val result = GLES20.glCreateProgram()
-        GLES20.glAttachShader(result, vertex)
-        GLES20.glAttachShader(result, fragment)
-        GLES20.glLinkProgram(result)
-        val status = IntArray(1)
-        GLES20.glGetProgramiv(result, GLES20.GL_LINK_STATUS, status, 0)
-        if (status[0] == 0) throw RuntimeException("Falha ao vincular shaders: " + GLES20.glGetProgramInfoLog(result))
-        return result
-    }
-
-    private fun floatBuffer(values: FloatArray): FloatBuffer =
-        ByteBuffer.allocateDirect(values.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer().put(values).apply { position(0) }
-}
-
-private class SphereMesh(latitudeBands: Int, longitudeBands: Int) {
-    private val vertices: FloatBuffer
-    private val normals: FloatBuffer
-    private val indices: ShortBuffer
-    private val indexCount: Int
-
-    init {
-        val vertexData = ArrayList<Float>()
-        val normalData = ArrayList<Float>()
-        val indexData = ArrayList<Short>()
-        for (lat in 0..latitudeBands) {
-            val theta = lat * Math.PI.toFloat() / latitudeBands
-            val sinTheta = sin(theta)
-            val cosTheta = cos(theta)
-            for (lon in 0..longitudeBands) {
-                val phi = lon * 2f * Math.PI.toFloat() / longitudeBands
-                val x = cos(phi) * sinTheta
-                val y = cosTheta
-                val z = sin(phi) * sinTheta
-                vertexData.add(x); vertexData.add(y); vertexData.add(z)
-                normalData.add(x); normalData.add(y); normalData.add(z)
-            }
-        }
-        for (lat in 0 until latitudeBands) {
-            for (lon in 0 until longitudeBands) {
-                val first = (lat * (longitudeBands + 1) + lon).toShort()
-                val second = (first.toInt() + longitudeBands + 1).toShort()
-                indexData.add(first); indexData.add(second); indexData.add((first.toInt() + 1).toShort())
-                indexData.add(second); indexData.add((second.toInt() + 1).toShort()); indexData.add((first.toInt() + 1).toShort())
-            }
-        }
-        vertices = ByteBuffer.allocateDirect(vertexData.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
-        vertexData.forEach { vertices.put(it) }; vertices.position(0)
-        normals = ByteBuffer.allocateDirect(normalData.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
-        normalData.forEach { normals.put(it) }; normals.position(0)
-        indices = ByteBuffer.allocateDirect(indexData.size * 2).order(ByteOrder.nativeOrder()).asShortBuffer()
-        indexData.forEach { indices.put(it) }; indices.position(0)
-        indexCount = indexData.size
-    }
-
-    fun draw(positionHandle: Int, normalHandle: Int) {
-        vertices.position(0); normals.position(0); indices.position(0)
-        GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertices)
-        GLES20.glEnableVertexAttribArray(normalHandle)
-        GLES20.glVertexAttribPointer(normalHandle, 3, GLES20.GL_FLOAT, false, 0, normals)
-        GLES20.glDrawElements(GLES20.GL_TRIANGLES, indexCount, GLES20.GL_UNSIGNED_SHORT, indices)
-        GLES20.glDisableVertexAttribArray(positionHandle)
-        GLES20.glDisableVertexAttribArray(normalHandle)
+    companion object {
+        // Capturado pelo Activity antes da criação do renderer.
+        @Volatile var currentApplicationContext: Context? = null
     }
 }
