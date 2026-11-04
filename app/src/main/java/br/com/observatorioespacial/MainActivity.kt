@@ -14,7 +14,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
-import androidx.core.app.ActivityCompat
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
@@ -37,7 +36,7 @@ class MainActivity : Activity(), LocationListener {
     }
 
     private fun hasLocationPermission(): Boolean {
-        val fine = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val fine = checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val coarse = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         return fine || coarse
     }
@@ -46,7 +45,7 @@ class MainActivity : Activity(), LocationListener {
         if (hasLocationPermission()) {
             startLocationUpdates()
         } else {
-            ActivityCompat.requestPermissions(
+            requestPermissions(
                 this,
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
                 LOCATION_PERMISSION_REQUEST
