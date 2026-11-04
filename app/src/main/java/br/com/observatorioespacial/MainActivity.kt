@@ -13,6 +13,8 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.opengl.GLSurfaceView
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.FrameLayout
@@ -46,6 +48,9 @@ class MainActivity : Activity(), LocationListener {
     private lateinit var dataLabel: TextView
     private lateinit var locationManager: LocationManager
     private var currentLocation: Location? = null
+    private val liveHandler = Handler(Looper.getMainLooper())
+    private var liveObjectName: String? = null
+    private var liveTracking = false
     private var previousTouchX = 0f
     private var previousTouchY = 0f
     private var previousPinchDistance = 0f
@@ -182,8 +187,19 @@ class MainActivity : Activity(), LocationListener {
                                     AlertDialog.Builder(this)
                                         .setTitle("Resultado da pesquisa")
                                         .setMessage(result)
-                                        .setPositiveButton("Fechar", null)
+                                        .setPositiveButton(if (!satellite) "Acompanhar ao vivo" else "Fechar", null)
+                                        .setNegativeButton("Fechar", null)
                                         .show()
+                                        .also { dialog ->
+                                            if (!satellite) {
+                                                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                                                    liveObjectName = query
+                                                    liveTracking = true
+                                                    refreshLiveNaturalObject()
+                                                    dialog.dismiss()
+                                                }
+                                            }
+                                        }
                                 }
                             }
                             if (satellite) {
@@ -208,6 +224,35 @@ class MainActivity : Activity(), LocationListener {
             }
             .setNegativeButton("Cancelar", null)
             .show()
+    }
+
+    private fun refreshLiveNaturalObject() {
+        val name = liveObjectName ?: return
+        if (!liveTracking) return
+        val observer = currentLocation
+        if (observer == null) {
+            dataLabel.text = "AO VIVO pausado • aguardando localização GPS"
+        } else {
+            dataLabel.text = "● ACOMPANHAMENTO AO VIVO • atualizando " + name + "…"
+            ObjectCatalogService.searchNaturalObject(
+                name, observer.latitude, observer.longitude,
+                if (observer.hasAltitude()) observer.altitude else 0.0
+            ) { result ->
+                runOnUiThread {
+                    if (liveTracking && liveObjectName == name) {
+                        val summary = result.lineSequence().take(7).joinToString(" • ")
+                        dataLabel.text = "● AO VIVO • " + summary + " • próxima atualização em 60 s"
+                    }
+                }
+            }
+        }
+        liveHandler.postDelayed({ refreshLiveNaturalObject() }, 60_000L)
+    }
+
+    private fun stopLiveTracking() {
+        liveTracking = false
+        liveObjectName = null
+        liveHandler.removeCallbacksAndMessages(null)
     }
 
     private fun addNasaImageGallery(root: FrameLayout) {
@@ -316,6 +361,7 @@ class MainActivity : Activity(), LocationListener {
         if (::locationManager.isInitialized && hasLocationPermission()) startLocationUpdates()
     }
     override fun onPause() {
+        stopLiveTracking()
         if (::glView.isInitialized) glView.onPause()
         if (::locationManager.isInitialized) try { locationManager.removeUpdates(this) } catch (_: Exception) {}
         super.onPause()
