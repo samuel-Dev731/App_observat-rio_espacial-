@@ -13,7 +13,11 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+
+        // ABIs oficiais suportadas pelo Android NDK.
+        // Inclui ARM 32/64 bits e x86 32/64 bits.
+        ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64") }
+
         externalNativeBuild {
             cmake {
                 cppFlags += listOf("-std=c++17", "-O2")
