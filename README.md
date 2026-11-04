@@ -14,7 +14,7 @@
 - Shaders de vértice e fragmento, profundidade, iluminação difusa, órbitas e planetas.
 - Camada visual da Via Láctea gerada proceduralmente em C++: faixa galáctica de partículas com densidade concentrada e qualidade ajustada ao perfil gráfico.
 - Campo estelar e camada galáctica são efeitos visuais procedurais; ainda não representam um catálogo astronômico medido nem a posição real do céu para data/local.
-- Posições dos oito planetas consultadas no JPL Horizons (NASA/JPL), com vetores heliocêntricos em unidades astronômicas para uma janela de 24 horas.
+- Posições dos oito planetas consultadas no JPL Horizons (NASA/JPL), com vetores heliocêntricos em unidades astronômicas para uma janela de 360 dias.
 - C++ interpola as amostras oficiais para animar os planetas e desenhar suas trajetórias previstas; a animação é acelerada e não representa uma transmissão ao vivo de telescópios.
 - Imagens ilustrativas dos planetas são pesquisadas na NASA Image and Video Library; dependem de internet e da disponibilidade do catálogo.
 - Kotlin fica responsável pela interface Android, ciclo de vida, permissões, localização e gestos de câmera.
