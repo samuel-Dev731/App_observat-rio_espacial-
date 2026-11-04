@@ -13,8 +13,13 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.opengl.GLSurfaceView
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.view.View
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.FrameLayout
@@ -39,7 +44,7 @@ private class NativeBridge {
     companion object { init { System.loadLibrary("observatorio_native") } }
 }
 
-class MainActivity : Activity(), LocationListener {
+class MainActivity : Activity(), LocationListener, SensorEventListener {
     private lateinit var glView: GLSurfaceView
     private lateinit var nativeBridge: NativeBridge
     private lateinit var spaceRenderer: NativeSpaceRenderer
@@ -48,9 +53,9 @@ class MainActivity : Activity(), LocationListener {
     private lateinit var dataLabel: TextView
     private lateinit var locationManager: LocationManager
     private var currentLocation: Location? = null
-    private val liveHandler = Handler(Looper.getMainLooper())
-    private var liveObjectName: String? = null
-    private var liveTracking = false
+    private lateinit var sensorManager: SensorManager
+    private var compassView: SkyCompassView? = null
+    private var universeLiveMode = true
     private var previousTouchX = 0f
     private var previousTouchY = 0f
     private var previousPinchDistance = 0f
@@ -125,19 +130,30 @@ class MainActivity : Activity(), LocationListener {
         }
         root.addView(dataLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = 88 })
 
+        val liveUniverseButton = TextView(this).apply {
+            text = "◉  MODO LIVE • UNIVERSO INTEIRO"
+            setTextColor(Color.WHITE); textSize = 12f; gravity = Gravity.CENTER
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            setBackgroundColor(Color.argb(210, 25, 65, 105))
+            setOnClickListener {
+                universeLiveMode = !universeLiveMode
+                spaceRenderer.setUniverseMode(universeLiveMode)
+                text = if (universeLiveMode) "◉  MODO LIVE • UNIVERSO INTEIRO" else "◎  EXPLORAÇÃO LIVRE 3D"
+                dataLabel.text = if (universeLiveMode) "UNIVERSO LIVE • cena 3D animada e efemérides NASA/JPL quando disponíveis" else "Exploração livre • arraste para girar e pinça para aproximar"
+            }
+        }
+        root.addView(liveUniverseButton, FrameLayout.LayoutParams(-1, dp(42), Gravity.TOP).apply {
+            topMargin = dp(116); leftMargin = dp(14); rightMargin = dp(14)
+        })
         val searchObjectsButton = TextView(this).apply {
             text = "⌕  PESQUISAR SATÉLITES, COMETAS E OUTROS"
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE); textSize = 12f; gravity = Gravity.CENTER
             setPadding(dp(14), dp(10), dp(14), dp(10))
             setBackgroundColor(Color.argb(205, 18, 48, 78))
             setOnClickListener { showObjectSearch() }
         }
         root.addView(searchObjectsButton, FrameLayout.LayoutParams(-1, dp(44), Gravity.TOP).apply {
-            topMargin = dp(116)
-            leftMargin = dp(14)
-            rightMargin = dp(14)
+            topMargin = dp(164); leftMargin = dp(14); rightMargin = dp(14)
         })
 
         locationLabel = TextView(this).apply {
@@ -148,6 +164,8 @@ class MainActivity : Activity(), LocationListener {
             setShadowLayer(6f, 0f, 1f, Color.BLACK)
         }
         root.addView(locationLabel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
+        compassView = SkyCompassView(this)
+        root.addView(compassView, FrameLayout.LayoutParams(dp(116), dp(116), Gravity.RIGHT or Gravity.BOTTOM).apply { rightMargin = dp(12); bottomMargin = dp(172) })
         setContentView(root)
         addNasaImageGallery(root)
         AstronomyDataService.fetchPlanetPositions { positions, message ->
@@ -160,6 +178,7 @@ class MainActivity : Activity(), LocationListener {
             }
         }
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         checkLocationPermission()
     }
 
@@ -184,22 +203,21 @@ class MainActivity : Activity(), LocationListener {
                             val done: (String) -> Unit = { result ->
                                 runOnUiThread {
                                     dataLabel.text = "Pesquisa concluída"
-                                    AlertDialog.Builder(this)
-                                        .setTitle("Resultado da pesquisa")
-                                        .setMessage(result)
-                                        .setPositiveButton(if (!satellite) "Acompanhar ao vivo" else "Fechar", null)
-                                        .setNegativeButton("Fechar", null)
-                                        .show()
-                                        .also { dialog ->
-                                            if (!satellite) {
-                                                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                                                    liveObjectName = query
-                                                    liveTracking = true
-                                                    refreshLiveNaturalObject()
-                                                    dialog.dismiss()
-                                                }
-                                            }
-                                        }
+                                    val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(12), dp(20), dp(8)) }
+                                    val blue = TextView(this).apply {
+                                        text = result.lineSequence().firstOrNull { it.startsWith("VISÍVEL ATÉ:") || it.startsWith("VISIBILIDADE:") } ?: "VISIBILIDADE: previsão JPL"
+                                        setTextColor(Color.rgb(65, 165, 255)); textSize = 11f
+                                    }
+                                    val gray = TextView(this).apply {
+                                        text = result.lineSequence().firstOrNull { it.startsWith("PRÓXIMA VISIBILIDADE:") || it.startsWith("OBJETO:") } ?: "OBJETO: $query"
+                                        setTextColor(Color.LTGRAY); textSize = 10f
+                                    }
+                                    val details = TextView(this).apply {
+                                        text = result.lineSequence().filterNot { it.startsWith("VISÍVEL ATÉ:") || it.startsWith("VISIBILIDADE:") || it.startsWith("PRÓXIMA VISIBILIDADE:") }.joinToString("\n")
+                                        setTextColor(Color.WHITE); textSize = 13f
+                                    }
+                                    panel.addView(blue); panel.addView(gray); panel.addView(details)
+                                    AlertDialog.Builder(this).setTitle("Resultado da pesquisa").setView(panel).setPositiveButton("Fechar", null).show()
                                 }
                             }
                             if (satellite) {
@@ -224,35 +242,6 @@ class MainActivity : Activity(), LocationListener {
             }
             .setNegativeButton("Cancelar", null)
             .show()
-    }
-
-    private fun refreshLiveNaturalObject() {
-        val name = liveObjectName ?: return
-        if (!liveTracking) return
-        val observer = currentLocation
-        if (observer == null) {
-            dataLabel.text = "AO VIVO pausado • aguardando localização GPS"
-        } else {
-            dataLabel.text = "● ACOMPANHAMENTO AO VIVO • atualizando " + name + "…"
-            ObjectCatalogService.searchNaturalObject(
-                name, observer.latitude, observer.longitude,
-                if (observer.hasAltitude()) observer.altitude else 0.0
-            ) { result ->
-                runOnUiThread {
-                    if (liveTracking && liveObjectName == name) {
-                        val summary = result.lineSequence().take(7).joinToString(" • ")
-                        dataLabel.text = "● AO VIVO • " + summary + " • próxima atualização em 60 s"
-                    }
-                }
-            }
-        }
-        liveHandler.postDelayed({ refreshLiveNaturalObject() }, 60_000L)
-    }
-
-    private fun stopLiveTracking() {
-        liveTracking = false
-        liveObjectName = null
-        liveHandler.removeCallbacksAndMessages(null)
     }
 
     private fun addNasaImageGallery(root: FrameLayout) {
@@ -350,6 +339,15 @@ class MainActivity : Activity(), LocationListener {
         val value = String.format(Locale.US, "Sua posição: %.4f°, %.4f°", location.latitude, location.longitude) + accuracy
         runOnUiThread { locationLabel.text = value }
     }
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
+            val matrix = FloatArray(9); val orientation = FloatArray(3)
+            SensorManager.getRotationMatrixFromVector(matrix, event.values)
+            SensorManager.getOrientation(matrix, orientation)
+            compassView?.setAzimuth(Math.toDegrees(orientation[0].toDouble()).toFloat())
+        }
+    }
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     override fun onProviderEnabled(provider: String) {}
     override fun onProviderDisabled(provider: String) { runOnUiThread { locationLabel.text = "GPS indisponível — verifique a localização" } }
     @Deprecated("Compatibilidade com API 26")
@@ -358,13 +356,33 @@ class MainActivity : Activity(), LocationListener {
     override fun onResume() {
         super.onResume()
         if (::glView.isInitialized) glView.onResume()
+        if (::sensorManager.isInitialized) sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.also { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
         if (::locationManager.isInitialized && hasLocationPermission()) startLocationUpdates()
     }
     override fun onPause() {
-        stopLiveTracking()
+        if (::sensorManager.isInitialized) sensorManager.unregisterListener(this)
         if (::glView.isInitialized) glView.onPause()
         if (::locationManager.isInitialized) try { locationManager.removeUpdates(this) } catch (_: Exception) {}
         super.onPause()
+    }
+}
+
+private class SkyCompassView(context: Context) : View(context) {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    @Volatile private var azimuth = 0f
+    fun setAzimuth(value: Float) { azimuth = (value + 360f) % 360f; postInvalidateOnAnimation() }
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val cx = width / 2f; val cy = height / 2f; val r = minOf(cx, cy) * 0.82f
+        paint.style = Paint.Style.FILL; paint.color = Color.argb(175, 3, 12, 28); canvas.drawCircle(cx, cy, r, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 2f; paint.color = Color.argb(210, 110, 175, 235); canvas.drawCircle(cx, cy, r, paint)
+        paint.style = Paint.Style.FILL; paint.textAlign = Paint.Align.CENTER; paint.textSize = 10f; paint.color = Color.WHITE
+        canvas.drawText("N", cx, cy-r+13f, paint); canvas.drawText("S", cx, cy+r-5f, paint)
+        canvas.drawText("L", cx+r-8f, cy+4f, paint); canvas.drawText("O", cx-r+8f, cy+4f, paint)
+        canvas.save(); canvas.rotate(-azimuth, cx, cy); paint.color = Color.rgb(65,165,255)
+        val p = android.graphics.Path().apply { moveTo(cx,cy-r*0.68f); lineTo(cx-7f,cy+7f); lineTo(cx,cy+2f); lineTo(cx+7f,cy+7f); close() }
+        canvas.drawPath(p, paint); canvas.restore()
+        paint.textSize = 8f; paint.color = Color.LTGRAY; canvas.drawText("BÚSSOLA DO CÉU", cx, height-3f, paint)
     }
 }
 
@@ -395,6 +413,8 @@ private class NativeSpaceRenderer(
         val seconds = ((System.nanoTime() - startNanos) / 1_000_000_000.0).toFloat()
         bridge.nativeRender(seconds, zoom, yaw, pitch)
     }
+
+    fun setUniverseMode(enabled: Boolean) { if (enabled) { zoom = 0.72f; yaw = 0f; pitch = 0.18f } else { zoom = 1f } }
 
     fun changeView(scale: Float, dx: Float, dy: Float) {
         zoom = (zoom * scale).coerceIn(0.65f, 2.6f)
