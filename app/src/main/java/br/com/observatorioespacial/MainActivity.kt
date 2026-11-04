@@ -132,7 +132,7 @@ class MainActivity : Activity(), LocationListener {
                 dataLabel.text = message
                 if (positions != null) {
                     glView.queueEvent { nativeBridge.nativeSetEphemeris(positions) }
-                    dataLabel.text = "$message • movimento orbital em simulação acelerada"
+                    dataLabel.text = "$message • movimento orbital acelerado • 1 dia por segundo"
                 }
             }
         }
