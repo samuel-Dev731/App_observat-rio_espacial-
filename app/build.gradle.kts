@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+dependencies {
+    implementation("com.parodison:orbit-core:0.1.0")
+}
+
 android {
     namespace = "br.com.observatorioespacial"
     compileSdk = 35
