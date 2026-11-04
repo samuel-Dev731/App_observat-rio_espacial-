@@ -44,3 +44,11 @@ C# ainda não foi incorporado. O aplicativo usa Kotlin para integração Android
 
 ## Compilação
 O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 8.9 a cada push na branch `main`. Quando a compilação terminar, o APK de depuração será publicado como artefato `observatorio-espacial-debug` na execução do workflow.
+
+
+## Pesquisa de objetos celestes
+- A interface permite pesquisar cometas, asteroides, planetas-anões e luas pelo NASA/JPL Horizons.
+- Para corpos naturais, a consulta usa a localização GPS do aparelho e solicita coordenadas aparentes, azimute e elevação para o céu local, quando o objeto é reconhecido pelo Horizons.
+- A opção de satélites artificiais consulta elementos orbitais TLE do catálogo CelesTrak/NORAD.
+- **Limite atual:** a propagação SGP4 dos TLEs ainda não foi integrada; a tela de satélites mostra os elementos orbitais de origem, mas não afirma uma posição instantânea no céu. A visualização topocêntrica de corpos naturais é calculada por efemérides e não é uma transmissão ao vivo.
+- A pesquisa requer conexão com a internet. A localização é usada localmente para compor a consulta ao JPL.
