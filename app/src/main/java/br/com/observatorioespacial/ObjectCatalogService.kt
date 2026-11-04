@@ -78,26 +78,80 @@ object ObjectCatalogService {
         }
     }
 
-    fun searchArtificialSatellite(name: String, callback: (String) -> Unit) {
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    fun searchArtificialSatellite(name: String, latitude: Double, longitude: Double, altitudeMeters: Double, callback: (String) -> Unit) {
         executor.execute {
             try {
-                val url = Uri.parse("https://celestrak.org/NORAD/elements/gp.php").buildUpon()
+                val address = Uri.parse("https://celestrak.org/NORAD/elements/gp.php").buildUpon()
                     .appendQueryParameter("NAME", name)
-                    .appendQueryParameter("FORMAT", "TLE")
+                    .appendQueryParameter("FORMAT", "JSON")
                     .build().toString()
-                val tle = getText(url).trim()
-                val lines = tle.lines().filter { it.isNotBlank() }
-                if (lines.size < 3 || !lines.any { it.startsWith("1 ") } || !lines.any { it.startsWith("2 ") }) {
-                    throw IllegalStateException("Satélite não encontrado no catálogo público CelesTrak.")
-                }
+                val list = org.json.JSONArray(getText(address))
+                if (list.length() == 0) throw IllegalStateException("Satélite não encontrado no CelesTrak.")
+                val item = list.getJSONObject(0)
+                fun field(key: String): String = item.optString(key).takeIf { it.isNotBlank() && it != "null" }
+                    ?: throw IllegalStateException("Campo orbital ausente: " + key)
+                val epochText = field("EPOCH").let { if (it.endsWith("Z")) it else it + "Z" }
+                val omm = com.parodison.orbit.core.satellite.model.OrbitMeanElementsMessage(
+                    objectName = field("OBJECT_NAME"),
+                    objectId = field("OBJECT_ID"),
+                    epoch = kotlin.time.Instant.parse(epochText),
+                    meanMotion = field("MEAN_MOTION").toDouble(),
+                    eccentricity = field("ECCENTRICITY").toDouble(),
+                    inclination = field("INCLINATION").toDouble(),
+                    raOfAscNode = field("RA_OF_ASC_NODE").toDouble(),
+                    argOfPericenter = field("ARG_OF_PERICENTER").toDouble(),
+                    meanAnomaly = field("MEAN_ANOMALY").toDouble(),
+                    ephemerisType = field("EPHEMERIS_TYPE").toLong(),
+                    classificationType = field("CLASSIFICATION_TYPE"),
+                    noradCatId = field("NORAD_CAT_ID").toLong(),
+                    elementSetNo = field("ELEMENT_SET_NO").toLong(),
+                    revAtEpoch = field("REV_AT_EPOCH").toLong(),
+                    bstar = field("BSTAR").toDouble(),
+                    meanMotionDot = field("MEAN_MOTION_DOT").toDouble(),
+                    meanMotionDdot = field("MEAN_MOTION_DDOT").toDouble()
+                )
+                val sat = com.parodison.orbit.core.satellite.Satellite(omm)
+                val observer = com.parodison.orbit.core.satellite.ObserverCoordinates(
+                    latitudeDeg = latitude, longitudeDeg = longitude, altitudeKm = altitudeMeters / 1000.0
+                )
+                val now = kotlin.time.Instant.fromEpochMilliseconds(System.currentTimeMillis())
+                val look = sat.lookAnglesFrom(observer, now)
+                val ground = sat.subPointAt(now)
+                val passes = sat.nextPassesFrom(observer, now, kotlin.time.Duration.parse("24h"), 10.0, 30)
+                val pass = passes.firstOrNull()
+                val visibleNow = sat.isVisuallyVisibleFrom(observer, now, 10.0, -6.0)
+                val sunlit = sat.isSunlitAt(now)
+                fun utc(value: kotlin.time.Instant): String =
+                    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                        .withZone(ZoneOffset.UTC).format(java.time.Instant.parse(value.toString()))
+                val ageHours = java.time.Duration.between(java.time.Instant.parse(epochText),
+                    java.time.Instant.ofEpochMilli(System.currentTimeMillis())).toHours().coerceAtLeast(0)
+                val blue = if (pass != null) "VISÍVEL ATÉ: " + utc(pass.los) + " UTC"
+                    else "VISIBILIDADE: nenhuma passagem acima de 10° nas próximas 24 horas"
+                val gray = "SATÉLITE: " + omm.objectName + (if (pass != null) " • próxima passagem: " + utc(pass.aos) + " UTC" else " • sem passagem em 24 h")
+                val freshness = if (ageHours > 72) "ATENÇÃO: elementos com " + (ageHours / 24) + " dias; atualize os dados."
+                    else "Elementos orbitais recentes • idade: " + ageHours + " h"
+                val fmt = java.util.Locale.US
                 callback(
-                    "Satélite: ${lines.first()}\n" +
-                    "Fonte: CelesTrak / catálogo NORAD\n\n" +
-                    "Elementos orbitais TLE:\n${lines.filter { it.startsWith("1 ") || it.startsWith("2 ") }.joinToString("\n")}\n\n" +
-                    "O TLE foi localizado. A propagação SGP4 para calcular a posição instantânea no céu ainda não está integrada; por isso, esta tela não inventa azimute, elevação ou coordenadas atuais."
+                    blue + "\n" + gray + "\nFonte: CelesTrak/NORAD • SGP4/SDP4 local\n" +
+                    "NORAD: " + omm.noradCatId + " • época: " + epochText + "\n" + freshness + "\n" +
+                    "Azimute: " + String.format(fmt, "%.2f", look.azimuthDeg) + "°\n" +
+                    "Elevação: " + String.format(fmt, "%.2f", look.elevationDeg) + "°\n" +
+                    "Distância: " + String.format(fmt, "%.1f", look.rangeKm) + " km\n" +
+                    "Subponto: " + String.format(fmt, "%.4f", ground.latitudeDeg) + "°, " +
+                    String.format(fmt, "%.4f", ground.longitudeDeg) + "°\n" +
+                    "Altitude orbital: " + String.format(fmt, "%.1f", ground.altitudeKm) + " km • velocidade: " +
+                    String.format(fmt, "%.2f", sat.speedAt(now)) + " km/s\n" +
+                    "Iluminado pelo Sol: " + (if (sunlit) "sim" else "não") +
+                    " • visível a olho nu agora: " + (if (visibleNow) "condições favoráveis" else "não") + "\n" +
+                    (if (pass != null) "Passagem: início " + utc(pass.aos) + " UTC • máximo " +
+                        String.format(fmt, "%.1f", pass.maxElevationDeg) + "° às " + utc(pass.tca) +
+                        " UTC • fim " + utc(pass.los) + " UTC" else "Nenhuma passagem acima de 10° na janela consultada.") +
+                    "\n\nPosição calculada localmente a partir dos elementos orbitais; não é detecção por câmera nem transmissão de rádio."
                 )
             } catch (e: Exception) {
-                callback("Não foi possível obter o TLE desse satélite. Tente o nome oficial ou o número NORAD.\n\nDetalhe: ${e.message ?: "erro de conexão"}")
+                callback("Falha na propagação SGP4/SDP4. Confira o nome ou número NORAD.\n\nDetalhe: " + (e.message ?: "erro de conexão"))
             }
         }
     }
