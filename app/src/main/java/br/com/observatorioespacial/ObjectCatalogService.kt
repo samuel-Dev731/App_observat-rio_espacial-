@@ -43,8 +43,8 @@ object ObjectCatalogService {
                 val json = JSONObject(getText(url))
                 if (json.has("error")) throw IllegalStateException(json.optString("error"))
                 val result = json.optString("result")
-                val start = result.indexOf("$$SOE")
-                val end = result.indexOf("$$EOE")
+                val start = result.indexOf("\$\$SOE")
+                val end = result.indexOf("\$\$EOE")
                 if (start < 0 || end <= start) throw IllegalStateException("O JPL não retornou uma posição para esse nome.")
                 val row = result.substring(start + 5, end).lineSequence().firstOrNull { it.contains(",") }
                     ?: throw IllegalStateException("Não há amostra de posição disponível.")
