@@ -100,8 +100,8 @@ object AstronomyDataService {
     }
 
     private fun parseVectorRows(result: String): List<FloatArray> {
-        val start = result.indexOf("$$SOE")
-        val end = result.indexOf("$$EOE")
+        val start = result.indexOf("\$\$SOE")
+        val end = result.indexOf("\$\$EOE")
         if (start < 0 || end <= start) throw IllegalStateException("Formato de efemérides JPL inesperado")
         val section = result.substring(start + 5, end)
         val rows = mutableListOf<FloatArray>()
