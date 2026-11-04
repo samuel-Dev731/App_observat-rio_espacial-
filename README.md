@@ -52,3 +52,11 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - A opção de satélites artificiais consulta elementos orbitais TLE do catálogo CelesTrak/NORAD.
 - **Limite atual:** a propagação SGP4 dos TLEs ainda não foi integrada; a tela de satélites mostra os elementos orbitais de origem, mas não afirma uma posição instantânea no céu. A visualização topocêntrica de corpos naturais é calculada por efemérides e não é uma transmissão ao vivo.
 - A pesquisa requer conexão com a internet. A localização é usada localmente para compor a consulta ao JPL.
+
+
+## Modo de acompanhamento ao vivo
+- Após pesquisar um corpo natural, o usuário pode tocar em **Acompanhar ao vivo**.
+- O aplicativo consulta novamente o NASA/JPL Horizons a cada 60 segundos e atualiza as coordenadas aparentes para a localização GPS atual.
+- O acompanhamento é pausado ao sair do aplicativo para evitar consultas em segundo plano.
+- Isso é rastreamento astronômico calculado com efemérides atualizadas, não vídeo de telescópio. Vídeo ao vivo só pode ser exibido quando uma instituição disponibiliza um stream público próprio.
+- Para satélites artificiais, a tela ainda obtém TLE do CelesTrak; a propagação SGP4 e o cálculo contínuo de azimute/elevação ainda precisam ser integrados antes de oferecer rastreamento ao vivo desses satélites.
