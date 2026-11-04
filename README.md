@@ -54,9 +54,12 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - A pesquisa requer conexão com a internet. A localização é usada localmente para compor a consulta ao JPL.
 
 
-## Modo de acompanhamento ao vivo
-- Após pesquisar um corpo natural, o usuário pode tocar em **Acompanhar ao vivo**.
-- O aplicativo consulta novamente o NASA/JPL Horizons a cada 60 segundos e atualiza as coordenadas aparentes para a localização GPS atual.
-- O acompanhamento é pausado ao sair do aplicativo para evitar consultas em segundo plano.
-- Isso é rastreamento astronômico calculado com efemérides atualizadas, não vídeo de telescópio. Vídeo ao vivo só pode ser exibido quando uma instituição disponibiliza um stream público próprio.
-- Para satélites artificiais, a tela ainda obtém TLE do CelesTrak; a propagação SGP4 e o cálculo contínuo de azimute/elevação ainda precisam ser integrados antes de oferecer rastreamento ao vivo desses satélites.
+
+## Modo Live e céu local
+- O modo Live está integrado à tela principal. A cena 3D permanece animada e o botão alterna entre visão ampla do universo e exploração livre, sem um comando separado para acompanhar apenas um objeto.
+- A visão global usa a cena 3D e as efemérides NASA/JPL quando disponíveis; não é uma transmissão de vídeo de todo o Universo.
+- A bússola do céu usa o sensor de rotação do aparelho quando disponível. O GPS fornece latitude, longitude e altitude para cálculos topocêntricos.
+- Na pesquisa de corpos naturais, o JPL Horizons consulta uma janela de 24 horas com amostras de uma hora. A interface mostra um rótulo azul com o limite previsto de visibilidade e um rótulo cinza com o nome e o início da janela prevista. Os horários são UTC e a previsão é aproximada.
+- A previsão depende do horizonte geométrico e não considera nuvens, poluição luminosa, prédios ou árvores.
+- Satélites artificiais ainda fornecem TLE do CelesTrak. A propagação SGP4 ainda precisa ser integrada antes de exibir uma posição ou janela de visibilidade confiável para satélites.
+- A versão permanece 1.1.0 (versionCode 2).
