@@ -51,7 +51,7 @@ class MainActivity : Activity(), LocationListener {
             // ES 2.0 é o perfil mínimo garantido pelo manifesto.
             // Em GPUs ES 3.x, o driver mantém compatibilidade ES 2.0.
             setEGLContextClientVersion(2)
-            spaceRenderer = NativeSpaceRenderer(nativeBridge) { info ->
+            spaceRenderer = NativeSpaceRenderer(nativeBridge, applicationContext) { info ->
                 runOnUiThread { graphicsLabel.text = info }
             }
             setRenderer(spaceRenderer)
@@ -185,6 +185,7 @@ class MainActivity : Activity(), LocationListener {
 
 private class NativeSpaceRenderer(
     private val bridge: NativeBridge,
+    private val appContext: Context,
     private val onProfile: (String) -> Unit
 ) : GLSurfaceView.Renderer {
     @Volatile private var zoom = 1f
@@ -194,10 +195,7 @@ private class NativeSpaceRenderer(
     private var memoryClassMb = 128
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        val app = currentApplicationContext
-        memoryClassMb = if (app != null) {
-            (app.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).memoryClass
-        } else 128
+        memoryClassMb = (appContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).memoryClass
         bridge.nativeInit(memoryClassMb)
         startNanos = System.nanoTime()
         val profile = bridge.getGpuRenderer() + " • CPU: " + bridge.getCpuCoreCount() + " núcleos lógicos • RAM app: " + memoryClassMb + " MB"
@@ -219,8 +217,4 @@ private class NativeSpaceRenderer(
         pitch = (pitch + dy * 0.004f).coerceIn(-0.45f, 0.75f)
     }
 
-    companion object {
-        // Capturado pelo Activity antes da criação do renderer.
-        @Volatile var currentApplicationContext: Context? = null
-    }
 }
