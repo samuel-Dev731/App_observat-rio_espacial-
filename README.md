@@ -1,6 +1,6 @@
 # Observatório Espacial 🛰️
 
-**Versão 1.0.0** — aplicativo Android de exploração espacial.
+**Versão 1.1.0** — aplicativo Android de exploração espacial.
 
 ## Compatibilidade
 - Android 8.0 (API 26) ou superior.
@@ -11,7 +11,7 @@
 ## Motor 3D nativo
 - O desenho da cena 3D foi transferido para C++ no Android NDK.
 - C++ cria malhas de esferas, buffers de vértices/índices, campo de estrelas e órbitas; envia comandos OpenGL ES 2.0 ao driver gráfico.
-- Shaders de vértice e fragmento, profundidade, iluminação difusa, órbitas e planetas.
+- Shaders de vértice e fragmento, profundidade, iluminação difusa, órbitas e planetas.\n- Camada visual da Via Láctea gerada proceduralmente em C++: faixa galáctica de partículas com densidade concentrada e qualidade ajustada ao perfil gráfico.\n- Campo estelar e camada galáctica são efeitos visuais procedurais; ainda não representam um catálogo astronômico medido nem a posição real do céu para data/local.
 - C calcula as posições orbitais demonstrativas; C++ integra esse cálculo e executa a renderização.
 - Kotlin fica responsável pela interface Android, ciclo de vida, permissões, localização e gestos de câmera.
 - Arraste para girar a câmera e pinça para zoom.
@@ -31,7 +31,7 @@
 - Dispositivos sem suporte a OpenGL ES 2.0 não são compatíveis com a renderização 3D atual.
 
 ## Limites e precisão
-A cena é uma base visual/educativa. Os materiais e cores dos planetas são ilustrativos, não texturas fotográficas; ainda não há mapas reais de superfície, relevo ou dados astronômicos em tempo real. As posições orbitais atuais são demonstrativas, não efemérides científicas. Nenhum aplicativo consegue exibir literalmente todo o Universo em transmissão ao vivo: observações têm limites de cobertura, resolução e atraso.
+A cena é uma base visual/educativa inspirada em planetários como o Stellarium. A Via Láctea e o campo estelar desta etapa são procedurais, não um catálogo astrométrico. Ainda não há correspondência precisa das estrelas com data/local, constelações científicas, texturas fotográficas dos planetas, mapas reais de superfície, relevo ou efemérides em tempo real. As posições orbitais atuais são demonstrativas, não efemérides científicas. Nenhum aplicativo consegue exibir literalmente todo o Universo em transmissão ao vivo: observações têm limites de cobertura, resolução e atraso.
 
 A localização é processada no aparelho e exibida na tela; esta versão não envia coordenadas a servidores.
 
