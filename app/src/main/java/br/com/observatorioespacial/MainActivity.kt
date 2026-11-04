@@ -2,6 +2,7 @@ package br.com.observatorioespacial
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -15,6 +16,7 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.FrameLayout
+import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -43,6 +45,7 @@ class MainActivity : Activity(), LocationListener {
     private lateinit var graphicsLabel: TextView
     private lateinit var dataLabel: TextView
     private lateinit var locationManager: LocationManager
+    private var currentLocation: Location? = null
     private var previousTouchX = 0f
     private var previousTouchY = 0f
     private var previousPinchDistance = 0f
@@ -117,6 +120,21 @@ class MainActivity : Activity(), LocationListener {
         }
         root.addView(dataLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = 88 })
 
+        val searchObjectsButton = TextView(this).apply {
+            text = "⌕  PESQUISAR SATÉLITES, COMETAS E OUTROS"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            setBackgroundColor(Color.argb(205, 18, 48, 78))
+            setOnClickListener { showObjectSearch() }
+        }
+        root.addView(searchObjectsButton, FrameLayout.LayoutParams(-1, dp(44), Gravity.TOP).apply {
+            topMargin = dp(116)
+            leftMargin = dp(14)
+            rightMargin = dp(14)
+        })
+
         locationLabel = TextView(this).apply {
             text = "Solicitando localização…"
             setTextColor(Color.rgb(190, 215, 255))
@@ -138,6 +156,58 @@ class MainActivity : Activity(), LocationListener {
         }
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         checkLocationPermission()
+    }
+
+    private fun showObjectSearch() {
+        AlertDialog.Builder(this)
+            .setTitle("Pesquisar objetos celestes")
+            .setItems(arrayOf("Cometas, asteroides, planetas-anões e luas", "Satélites artificiais (ISS, Hubble etc.)")) { _, choice ->
+                val satellite = choice == 1
+                val field = EditText(this).apply {
+                    hint = if (satellite) "Nome ou número NORAD (ex.: ISS)" else "Nome ou designação (ex.: 1P/Halley)"
+                    setSingleLine(true)
+                    setPadding(dp(16), dp(12), dp(16), dp(12))
+                }
+                AlertDialog.Builder(this)
+                    .setTitle(if (satellite) "Buscar satélite" else "Buscar corpo celeste")
+                    .setView(field)
+                    .setNegativeButton("Cancelar", null)
+                    .setPositiveButton("Pesquisar") { _, _ ->
+                        val query = field.text.toString().trim()
+                        if (query.isNotEmpty()) {
+                            dataLabel.text = "Consultando catálogo astronômico…"
+                            val done: (String) -> Unit = { result ->
+                                runOnUiThread {
+                                    dataLabel.text = "Pesquisa concluída"
+                                    AlertDialog.Builder(this)
+                                        .setTitle("Resultado da pesquisa")
+                                        .setMessage(result)
+                                        .setPositiveButton("Fechar", null)
+                                        .show()
+                                }
+                            }
+                            if (satellite) {
+                                ObjectCatalogService.searchArtificialSatellite(query, done)
+                            } else {
+                                val observer = currentLocation
+                                if (observer == null) {
+                                    AlertDialog.Builder(this)
+                                        .setMessage("Ative a localização do aparelho para calcular azimute e elevação do objeto no seu céu.")
+                                        .setPositiveButton("OK", null)
+                                        .show()
+                                } else {
+                                    ObjectCatalogService.searchNaturalObject(
+                                        query, observer.latitude, observer.longitude,
+                                        if (observer.hasAltitude()) observer.altitude else 0.0, done
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .show()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun addNasaImageGallery(root: FrameLayout) {
@@ -230,6 +300,7 @@ class MainActivity : Activity(), LocationListener {
     }
 
     override fun onLocationChanged(location: Location) {
+        currentLocation = location
         val accuracy = if (location.hasAccuracy()) " • precisão ±${location.accuracy.toInt()} m" else ""
         val value = String.format(Locale.US, "Sua posição: %.4f°, %.4f°", location.latitude, location.longitude) + accuracy
         runOnUiThread { locationLabel.text = value }
