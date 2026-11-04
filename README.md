@@ -4,11 +4,12 @@
 
 ## Compatibilidade
 - Android 8.0 (API 26) ou superior.
-- OpenGL ES 2.0 para renderização 3D.
-- Kotlin, Android SDK e JDK 17 para compilação.
+- ABI nativas Android NDK: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` (Intel 32 bits) e `x86_64` (Intel 64 bits).
+- OpenGL ES 2.0 como perfil gráfico mínimo. Dispositivos com OpenGL ES 3.x normalmente oferecem contexto ES 2.0 por compatibilidade retroativa.
+- Kotlin, Android SDK, CMake 3.22.1 e JDK 17 para compilação.
 
 ## Motor 3D — primeira etapa
-- Cena renderizada com OpenGL ES 2.0 (não é mais o desenho 2D anterior).
+- Cena renderizada com OpenGL ES 2.0.
 - Malha esférica 3D para o Sol e cinco planetas ilustrativos.
 - Iluminação difusa, profundidade, órbitas e campo de estrelas.
 - Câmera com rotação por arraste e zoom por pinça.
@@ -20,7 +21,9 @@
 - C++ via Android NDK/JNI executa o cálculo de posições orbitais e consulta o identificador do renderer gráfico quando o contexto OpenGL está ativo.
 - C fornece a rotina matemática de órbitas chamada pelo módulo C++.
 - OpenGL ES 2.0 envia os comandos gráficos ao driver da GPU; o driver e o Android decidem a execução na GPU disponível.
-- ABI incluídas: ARM64, ARMv7 e x86_64. O Android/driver pode impor limites de memória, temperatura, frequência e recursos gráficos; o app deve reduzir qualidade e carga quando necessário.
+- O pacote nativo é compilado para as quatro ABIs oficiais listadas acima. A disponibilidade real depende do processador e da versão Android do aparelho.
+- A implementação gráfica usa a API GLES 2.0; não significa que implemente todos os recursos específicos de ES 1.x, ES 3.x ou extensões de cada fabricante. ES 1.x não é suportado como caminho gráfico. Dispositivos sem suporte a OpenGL ES 2.0 não são compatíveis com a renderização 3D atual.
+- O Android/driver pode impor limites de memória, temperatura, frequência e recursos gráficos; o app deve reduzir qualidade e carga quando necessário.
 - C# não foi incorporado nesta etapa: este app é Android nativo Gradle/Kotlin. Adicionar .NET para Android só para misturar linguagens aumentaria o tamanho e o consumo sem acelerar automaticamente a GPU. Pode ser avaliado futuramente como módulo separado se houver uma função concreta que justifique o runtime .NET.
 
 ## Próximas etapas
