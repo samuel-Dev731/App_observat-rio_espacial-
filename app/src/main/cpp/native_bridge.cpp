@@ -13,7 +13,7 @@ struct Vec3 { float x,y,z; };
 GLuint program=0, sphereVbo=0, sphereNbo=0, sphereIbo=0, starVbo=0, milkyWayVbo=0;
 GLint aPosition=-1,aNormal=-1,uMvp=-1,uModel=-1,uColor=-1,uLight=-1,uLighting=-1,uPointSize=-1;
 GLsizei sphereIndexCount=0, starCount=0, milkyWayCount=0;
-constexpr int PLANET_COUNT=8, EPHEMERIS_STEPS=25;
+constexpr int PLANET_COUNT=8, EPHEMERIS_STEPS=73;
 std::vector<Vec3> ephemeris(PLANET_COUNT*EPHEMERIS_STEPS);
 GLuint ephemerisOrbitVbos[PLANET_COUNT]={};
 bool ephemerisReady=false;
@@ -129,7 +129,7 @@ Java_br_com_observatorioespacial_NativeBridge_nativeRender(JNIEnv*,jobject,jfloa
  if(ephemerisReady){
   const float colors[8][3]={{.65f,.58f,.45f},{.75f,.60f,.42f},{.30f,.55f,1.f},{.90f,.35f,.20f},{.85f,.68f,.38f},{.75f,.72f,.60f},{.35f,.75f,.82f},{.30f,.40f,.90f}};
   const float sizes[8]={.12f,.18f,.20f,.16f,.48f,.40f,.31f,.30f};
-  float h=std::fmod(seconds*.2f,24.f);int i0=(int)h;float f=h-i0;
+  float h=std::fmod(seconds*.2f,(float)(EPHEMERIS_STEPS-1));int i0=(int)h;float f=h-i0;
   for(int i=0;i<PLANET_COUNT;i++){
    drawEphemerisOrbit(i);
    Vec3 a=ephemeris[i*EPHEMERIS_STEPS+i0],b=ephemeris[i*EPHEMERIS_STEPS+std::min(i0+1,EPHEMERIS_STEPS-1)];
