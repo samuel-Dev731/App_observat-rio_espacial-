@@ -6,6 +6,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -14,6 +15,9 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.MotionEvent
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import java.util.Locale
 import javax.microedition.khronos.egl.EGLConfig
@@ -24,6 +28,7 @@ private class NativeBridge {
     external fun nativeInit(memoryClassMb: Int)
     external fun nativeResize(width: Int, height: Int)
     external fun nativeRender(seconds: Float, zoom: Float, yaw: Float, pitch: Float)
+    external fun nativeSetEphemeris(values: FloatArray)
     external fun getGpuRenderer(): String
     external fun getCpuCoreCount(): Int
 
@@ -36,6 +41,7 @@ class MainActivity : Activity(), LocationListener {
     private lateinit var spaceRenderer: NativeSpaceRenderer
     private lateinit var locationLabel: TextView
     private lateinit var graphicsLabel: TextView
+    private lateinit var dataLabel: TextView
     private lateinit var locationManager: LocationManager
     private var previousTouchX = 0f
     private var previousTouchY = 0f
@@ -102,6 +108,15 @@ class MainActivity : Activity(), LocationListener {
         val graphicsParams = FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = 62 }
         root.addView(graphicsLabel, graphicsParams)
 
+        dataLabel = TextView(this).apply {
+            text = "Carregando posições planetárias oficiais do NASA/JPL…"
+            setTextColor(Color.rgb(170, 230, 210))
+            textSize = 10f
+            setPadding(18, 4, 18, 4)
+            setShadowLayer(6f, 0f, 1f, Color.BLACK)
+        }
+        root.addView(dataLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = 88 })
+
         locationLabel = TextView(this).apply {
             text = "Solicitando localização…"
             setTextColor(Color.rgb(190, 215, 255))
@@ -111,9 +126,62 @@ class MainActivity : Activity(), LocationListener {
         }
         root.addView(locationLabel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
         setContentView(root)
+        addNasaImageGallery(root)
+        AstronomyDataService.fetchPlanetPositions { positions, message ->
+            runOnUiThread {
+                dataLabel.text = message
+                if (positions != null) {
+                    glView.queueEvent { nativeBridge.nativeSetEphemeris(positions) }
+                    dataLabel.text = "$message • movimento orbital em simulação acelerada"
+                }
+            }
+        }
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         checkLocationPermission()
     }
+
+    private fun addNasaImageGallery(root: FrameLayout) {
+        val planets = listOf("Mercúrio", "Vênus", "Terra", "Marte", "Júpiter", "Saturno", "Urano", "Netuno")
+        val queries = listOf("Mercury planet NASA spacecraft", "Venus planet NASA spacecraft", "Earth planet NASA", "Mars planet NASA Hubble", "Jupiter planet NASA Hubble", "Saturn planet NASA Cassini", "Uranus planet NASA", "Neptune planet NASA Voyager")
+        val strip = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val scroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            setBackgroundColor(Color.argb(145, 4, 10, 25))
+            addView(strip)
+        }
+        root.addView(scroll, FrameLayout.LayoutParams(-1, dp(104), Gravity.BOTTOM).apply { bottomMargin = dp(58) })
+        planets.forEachIndexed { index, name ->
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(5), dp(4), dp(5), dp(3))
+            }
+            val image = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setBackgroundColor(Color.rgb(22, 32, 52))
+            }
+            val label = TextView(this).apply {
+                text = name
+                setTextColor(Color.WHITE)
+                textSize = 10f
+                gravity = Gravity.CENTER
+                maxLines = 1
+            }
+            card.addView(image, LinearLayout.LayoutParams(dp(96), dp(68)))
+            card.addView(label, LinearLayout.LayoutParams(dp(100), dp(22)))
+            strip.addView(card, LinearLayout.LayoutParams(dp(108), dp(100)))
+            AstronomyDataService.fetchNasaThumbnail(queries[index]) { url ->
+                if (url != null) AstronomyDataService.downloadImage(url) { bytes ->
+                    if (bytes != null) {
+                        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        runOnUiThread { image.setImageBitmap(bitmap) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun pointerDistance(event: MotionEvent): Float {
         val dx = event.getX(0) - event.getX(1)
