@@ -89,7 +89,13 @@ class MainActivity : Activity(), LocationListener {
         checkLocationPermission()
     }
 
-    private fun pointerDistance(event: MotionEvent): Float {\n        val dx = event.getX(0) - event.getX(1)\n        val dy = event.getY(0) - event.getY(1)\n        return kotlin.math.sqrt(dx * dx + dy * dy)\n    }\n\n    private fun hasLocationPermission(): Boolean =
+    private fun pointerDistance(event: MotionEvent): Float {
+        val dx = event.getX(0) - event.getX(1)
+        val dy = event.getY(0) - event.getY(1)
+        return kotlin.math.sqrt(dx * dx + dy * dy)
+    }
+
+    private fun hasLocationPermission(): Boolean =
         checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
@@ -236,7 +242,17 @@ private class SpaceRenderer : GLSurfaceView.Renderer {
             starData[i * 3 + 2] = radius * ring * sin(theta)
         }
         stars = floatBuffer(starData)
-        for (radius in floatArrayOf(2.2f, 3.3f, 4.6f, 6.2f, 8.2f)) {\n            val orbitData = FloatArray(361 * 3)\n            for (i in 0..360) {\n                val angle = i * Math.PI.toFloat() / 180f\n                orbitData[i * 3] = cos(angle) * radius\n                orbitData[i * 3 + 1] = 0f\n                orbitData[i * 3 + 2] = sin(angle) * radius\n            }\n            orbitBuffers[radius] = floatBuffer(orbitData)\n        }\n    }
+        for (radius in floatArrayOf(2.2f, 3.3f, 4.6f, 6.2f, 8.2f)) {
+            val orbitData = FloatArray(361 * 3)
+            for (i in 0..360) {
+                val angle = i * Math.PI.toFloat() / 180f
+                orbitData[i * 3] = cos(angle) * radius
+                orbitData[i * 3 + 1] = 0f
+                orbitData[i * 3 + 2] = sin(angle) * radius
+            }
+            orbitBuffers[radius] = floatBuffer(orbitData)
+        }
+    }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         surfaceWidth = width.coerceAtLeast(1)
