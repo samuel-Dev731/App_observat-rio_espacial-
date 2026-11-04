@@ -5,6 +5,10 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.app.ActivityManager
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.BitmapFactory
@@ -54,6 +58,9 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
     private lateinit var locationManager: LocationManager
     private var currentLocation: Location? = null
     private lateinit var sensorManager: SensorManager
+    private lateinit var connectivityManager: ConnectivityManager
+    private var satelliteNetworkCallback: ConnectivityManager.NetworkCallback? = null
+    private var d2dLabel: TextView? = null
     private var compassView: SkyCompassView? = null
     private var universeLiveMode = true
     private var previousTouchX = 0f
@@ -155,6 +162,12 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         root.addView(searchObjectsButton, FrameLayout.LayoutParams(-1, dp(44), Gravity.TOP).apply {
             topMargin = dp(164); leftMargin = dp(14); rightMargin = dp(14)
         })
+        d2dLabel = TextView(this).apply {
+            text = if (Build.VERSION.SDK_INT >= 35) "D2D/NTN: verificando rede satelital…" else "D2D/NTN: Android 15+ e modem/operadora compatíveis necessários"
+            setTextColor(Color.LTGRAY); textSize = 9f; setPadding(dp(16), dp(2), dp(16), dp(2))
+            setShadowLayer(5f, 0f, 1f, Color.BLACK)
+        }
+        root.addView(d2dLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = dp(210) })
 
         locationLabel = TextView(this).apply {
             text = "Solicitando localização…"
@@ -179,6 +192,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         }
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         checkLocationPermission()
     }
 
@@ -216,12 +230,31 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
                                         text = result.lineSequence().filterNot { it.startsWith("VISÍVEL ATÉ:") || it.startsWith("VISIBILIDADE:") || it.startsWith("PRÓXIMA VISIBILIDADE:") }.joinToString("\n")
                                         setTextColor(Color.WHITE); textSize = 13f
                                     }
-                                    panel.addView(blue); panel.addView(gray); panel.addView(details)
+                                    panel.addView(blue); panel.addView(gray)
+                                    if (satellite) {
+                                        val az = Regex("Azimute: ([0-9.]+)").find(result)?.groupValues?.get(1)?.toFloatOrNull()
+                                        val el = Regex("Elevação: (-?[0-9.]+)").find(result)?.groupValues?.get(1)?.toFloatOrNull()
+                                        if (az != null && el != null) {
+                                            panel.addView(SatelliteRadarView(this, az, el),
+                                                LinearLayout.LayoutParams(dp(190), dp(190)).apply { gravity = Gravity.CENTER })
+                                        }
+                                    }
+                                    panel.addView(details)
                                     AlertDialog.Builder(this).setTitle("Resultado da pesquisa").setView(panel).setPositiveButton("Fechar", null).show()
                                 }
                             }
                             if (satellite) {
-                                ObjectCatalogService.searchArtificialSatellite(query, done)
+                                val observer = currentLocation
+                                if (observer == null) {
+                                    AlertDialog.Builder(this)
+                                        .setMessage("Ative a localização para calcular a passagem do satélite sobre sua região.")
+                                        .setPositiveButton("OK", null).show()
+                                } else {
+                                    ObjectCatalogService.searchArtificialSatellite(
+                                        query, observer.latitude, observer.longitude,
+                                        if (observer.hasAltitude()) observer.altitude else 0.0, done
+                                    )
+                                }
                             } else {
                                 val observer = currentLocation
                                 if (observer == null) {
@@ -339,6 +372,42 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         val value = String.format(Locale.US, "Sua posição: %.4f°, %.4f°", location.latitude, location.longitude) + accuracy
         runOnUiThread { locationLabel.text = value }
     }
+    private fun registerSatelliteNetworkMonitor() {
+        if (Build.VERSION.SDK_INT < 35 || satelliteNetworkCallback != null) return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                val satellite = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_SATELLITE)
+                runOnUiThread {
+                    d2dLabel?.text = if (satellite)
+                        "REDE SATELITAL/D2D: conexão reportada pelo Android"
+                    else
+                        "D2D/NTN: sem conexão satelital ativa • SGP4 funciona sem D2D"
+                }
+            }
+            override fun onLost(network: Network) {
+                runOnUiThread { d2dLabel?.text = "D2D/NTN: conexão satelital não ativa no momento" }
+            }
+        }
+        try {
+            connectivityManager.registerDefaultNetworkCallback(callback)
+            satelliteNetworkCallback = callback
+            val active = connectivityManager.activeNetwork
+            val caps = active?.let { connectivityManager.getNetworkCapabilities(it) }
+            d2dLabel?.text = if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_SATELLITE) == true)
+                "REDE SATELITAL/D2D: conexão reportada pelo Android"
+            else
+                "D2D/NTN: aguardando rede satelital compatível"
+        } catch (_: Exception) {
+            d2dLabel?.text = "D2D/NTN: status indisponível neste aparelho"
+        }
+    }
+
+    private fun unregisterSatelliteNetworkMonitor() {
+        val callback = satelliteNetworkCallback ?: return
+        try { connectivityManager.unregisterNetworkCallback(callback) } catch (_: Exception) {}
+        satelliteNetworkCallback = null
+    }
+
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
             val matrix = FloatArray(9); val orientation = FloatArray(3)
@@ -357,13 +426,37 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         super.onResume()
         if (::glView.isInitialized) glView.onResume()
         if (::sensorManager.isInitialized) sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)?.also { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_UI) }
+        registerSatelliteNetworkMonitor()
         if (::locationManager.isInitialized && hasLocationPermission()) startLocationUpdates()
     }
     override fun onPause() {
         if (::sensorManager.isInitialized) sensorManager.unregisterListener(this)
+        unregisterSatelliteNetworkMonitor()
         if (::glView.isInitialized) glView.onPause()
         if (::locationManager.isInitialized) try { locationManager.removeUpdates(this) } catch (_: Exception) {}
         super.onPause()
+    }
+}
+
+private class SatelliteRadarView(context: Context, private val azimuthDeg: Float, private val elevationDeg: Float) : View(context) {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val cx = width / 2f; val cy = height / 2f; val radius = minOf(cx, cy) * 0.82f
+        paint.style = Paint.Style.FILL; paint.color = Color.argb(190, 3, 12, 28); canvas.drawCircle(cx, cy, radius, paint)
+        paint.style = Paint.Style.STROKE; paint.strokeWidth = 1.5f; paint.color = Color.rgb(85, 145, 195)
+        canvas.drawCircle(cx, cy, radius, paint); canvas.drawCircle(cx, cy, radius * .66f, paint); canvas.drawCircle(cx, cy, radius * .33f, paint)
+        canvas.drawLine(cx-radius, cy, cx+radius, cy, paint); canvas.drawLine(cx, cy-radius, cx, cy+radius, paint)
+        paint.style = Paint.Style.FILL; paint.textAlign = Paint.Align.CENTER; paint.textSize = 10f; paint.color = Color.WHITE
+        canvas.drawText("N", cx, cy-radius+12f, paint); canvas.drawText("S", cx, cy+radius-3f, paint)
+        canvas.drawText("L", cx+radius-7f, cy+4f, paint); canvas.drawText("O", cx-radius+7f, cy+4f, paint)
+        val distance = radius * (1f - elevationDeg.coerceIn(0f, 90f) / 90f)
+        val angle = Math.toRadians(azimuthDeg.toDouble() - 90.0)
+        val x = cx + (distance * kotlin.math.cos(angle)).toFloat()
+        val y = cy + (distance * kotlin.math.sin(angle)).toFloat()
+        paint.color = Color.rgb(65, 165, 255); canvas.drawCircle(x, y, 7f, paint)
+        paint.color = Color.WHITE; paint.textSize = 9f
+        canvas.drawText("AZ ${azimuthDeg.toInt()}° • EL ${elevationDeg.toInt()}°", cx, height-2f, paint)
     }
 }
 
