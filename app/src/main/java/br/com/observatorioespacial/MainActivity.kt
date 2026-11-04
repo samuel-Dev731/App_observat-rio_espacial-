@@ -154,6 +154,7 @@ class MainActivity : Activity(), LocationListener {
 private class SpaceRenderer : GLSurfaceView.Renderer {
     private lateinit var sphere: SphereMesh
     private lateinit var stars: FloatBuffer
+    private val orbitBuffers = HashMap<Float, FloatBuffer>()
     private var program = 0
     private var positionHandle = 0
     private var normalHandle = 0
@@ -235,7 +236,7 @@ private class SpaceRenderer : GLSurfaceView.Renderer {
             starData[i * 3 + 2] = radius * ring * sin(theta)
         }
         stars = floatBuffer(starData)
-    }
+        for (radius in floatArrayOf(2.2f, 3.3f, 4.6f, 6.2f, 8.2f)) {\n            val orbitData = FloatArray(361 * 3)\n            for (i in 0..360) {\n                val angle = i * Math.PI.toFloat() / 180f\n                orbitData[i * 3] = cos(angle) * radius\n                orbitData[i * 3 + 1] = 0f\n                orbitData[i * 3 + 2] = sin(angle) * radius\n            }\n            orbitBuffers[radius] = floatBuffer(orbitData)\n        }\n    }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         surfaceWidth = width.coerceAtLeast(1)
@@ -311,14 +312,7 @@ private class SpaceRenderer : GLSurfaceView.Renderer {
     }
 
     private fun drawOrbit(radius: Float, r: Float, g: Float, b: Float) {
-        val data = FloatArray(361 * 3)
-        for (i in 0..360) {
-            val a = i * Math.PI.toFloat() / 180f
-            data[i * 3] = cos(a) * radius
-            data[i * 3 + 1] = 0f
-            data[i * 3 + 2] = sin(a) * radius
-        }
-        val buffer = floatBuffer(data)
+        val buffer = orbitBuffers[radius] ?: return
         Matrix.setIdentityM(model, 0)
         Matrix.multiplyMM(mvp, 0, vp, 0, model, 0)
         GLES20.glUniformMatrix4fv(mvpHandle, 1, false, mvp, 0)
