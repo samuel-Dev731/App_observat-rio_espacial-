@@ -15,7 +15,7 @@ import java.util.concurrent.Executors
  * A ordem dos corpos é: Mercúrio, Vênus, Terra, Marte, Júpiter, Saturno, Urano, Netuno.
  */
 object AstronomyDataService {
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor = Executors.newFixedThreadPool(3)
     private val dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneOffset.UTC)
     private val bodyIds = listOf("199", "299", "399", "499", "599", "699", "799", "899")
     private val bodyNames = listOf("Mercúrio", "Vênus", "Terra", "Marte", "Júpiter", "Saturno", "Urano", "Netuno")
