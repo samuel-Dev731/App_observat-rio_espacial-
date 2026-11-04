@@ -1,19 +1,23 @@
 # app_obiservatório_espacial 🛰️
 
-Aplicativo Android de exploração visual do Universo em 3D.
+**Versão 1.0.0** — aplicativo Android de exploração espacial.
 
-## Primeira versão
-- Cena espacial interativa com estrelas e órbitas.
-- Sistema Solar ilustrativo com Sol e planetas.
-- Gestos de toque para ampliar e reduzir a visualização.
-- Base Kotlin + Android SDK, pronta para evoluir.
+## Compatibilidade
+- Android 8.0 (API 26) ou superior.
+- Kotlin, Android SDK e JDK 17 para compilação.
+- Permissões de localização aproximada e precisa solicitadas durante o uso.
 
-> Esta versão é uma simulação visual educativa. As posições, escalas e órbitas são ilustrativas; não representam dados astronômicos em tempo real.
+## Recursos implementados nesta versão
+- Cena espacial ilustrativa com estrelas, Sol, planetas e órbitas.
+- Zoom por pinça e rotação por arraste.
+- Leitura da localização do aparelho enquanto o app está em primeiro plano.
+- Exibição de latitude, longitude e precisão reportada pelo Android.
+- O app continua funcionando sem conceder localização.
 
-## Como compilar
-Abra a pasta do projeto no Android Studio e aguarde a sincronização do Gradle. Execute o módulo `app` em um emulador ou dispositivo Android.
+## Sobre o Universo em tempo real
+Esta versão ainda não contém um catálogo astronômico completo nem transmissão ao vivo da NASA. A cena é uma representação educativa, não um mapa 3D completo nem uma efeméride precisa. Versões futuras poderão integrar catálogos e serviços astronômicos, exibindo fonte e data de atualização.
 
-## Próximas etapas
-1. Melhorar a navegação e seleção dos corpos celestes.
-2. Adicionar modelos e texturas planetárias.
-3. Integrar dados astronômicos de fontes como NASA.
+A localização é usada apenas no aparelho para exibir a posição nesta versão. O código atual não envia coordenadas a servidores.
+
+## Compilação
+Abra o projeto no Android Studio com JDK 17, sincronize o Gradle e execute o módulo `app` em um aparelho Android 8.0 ou superior.
