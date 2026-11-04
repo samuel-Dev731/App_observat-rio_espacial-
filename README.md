@@ -6,7 +6,7 @@
 - Android 8.0 (API 26) ou superior.
 - ABIs Android NDK: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` (Intel 32 bits) e `x86_64` (Intel 64 bits).
 - OpenGL ES 2.0 como perfil gráfico mínimo. Em aparelhos com drivers ES 3.x, o aplicativo usa um contexto ES 2.0 compatível.
-- Kotlin, Android SDK, CMake 3.22.1 e JDK 17 para compilação.
+- Kotlin 2.2.20, Android SDK, CMake 3.22.1 e JDK 17 para compilação.
 
 ## Motor 3D nativo
 - O desenho da cena 3D foi transferido para C++ no Android NDK.
@@ -49,8 +49,10 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 ## Pesquisa de objetos celestes
 - A interface permite pesquisar cometas, asteroides, planetas-anões e luas pelo NASA/JPL Horizons.
 - Para corpos naturais, a consulta usa a localização GPS do aparelho e solicita coordenadas aparentes, azimute e elevação para o céu local, quando o objeto é reconhecido pelo Horizons.
-- A opção de satélites artificiais consulta elementos orbitais TLE do catálogo CelesTrak/NORAD.
-- **Limite atual:** a propagação SGP4 dos TLEs ainda não foi integrada; a tela de satélites mostra os elementos orbitais de origem, mas não afirma uma posição instantânea no céu. A visualização topocêntrica de corpos naturais é calculada por efemérides e não é uma transmissão ao vivo.
+- A opção de satélites artificiais consulta elementos GP/OMM do catálogo CelesTrak/NORAD e propaga as órbitas localmente com SGP4/SDP4 (WGS-72), usando a biblioteca OrbitCore (Apache-2.0).
+- A tela apresenta azimute, elevação, distância inclinada, subponto terrestre, altitude orbital, velocidade, iluminação solar e previsão de passagens nas próximas 24 horas (elevação mínima de 10°).
+- Um radar polar mostra a direção e a altura angular do satélite em relação ao observador GPS.
+- A precisão depende da época e da qualidade dos elementos orbitais; dados antigos são sinalizados. TLE/OMM não é uma medição instantânea. A visualização topocêntrica de corpos naturais é calculada por efemérides e não é uma transmissão ao vivo.
 - A pesquisa requer conexão com a internet. A localização é usada localmente para compor a consulta ao JPL.
 
 
@@ -62,4 +64,5 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - Na pesquisa de corpos naturais, o JPL Horizons consulta uma janela de 24 horas com amostras de uma hora. A interface mostra um rótulo azul com o limite previsto de visibilidade e um rótulo cinza com o nome e o início da janela prevista. Os horários são UTC e a previsão é aproximada.
 - A previsão depende do horizonte geométrico e não considera nuvens, poluição luminosa, prédios ou árvores.
 - Satélites artificiais ainda fornecem TLE do CelesTrak. A propagação SGP4 ainda precisa ser integrada antes de exibir uma posição ou janela de visibilidade confiável para satélites.
+- O indicador D2D/NTN observa se o Android 15 (API 35+) informa uma rede com transporte satelital ativa. Isso detecta a conectividade do próprio telefone, não todos os satélites no céu, e depende de modem, firmware, operadora e serviço compatíveis.
 - A versão permanece 1.1.0 (versionCode 2).
