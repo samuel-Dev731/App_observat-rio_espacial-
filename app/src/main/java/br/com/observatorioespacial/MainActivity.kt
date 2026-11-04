@@ -33,6 +33,9 @@ class MainActivity : Activity(), LocationListener {
     private lateinit var renderer: SpaceRenderer
     private lateinit var locationLabel: TextView
     private lateinit var locationManager: LocationManager
+    private var previousTouchX = 0f
+    private var previousTouchY = 0f
+    private var previousPinchDistance = 0f
 
     companion object { private const val LOCATION_PERMISSION_REQUEST = 410 }
 
@@ -45,6 +48,24 @@ class MainActivity : Activity(), LocationListener {
             setRenderer(renderer)
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
             preserveEGLContextOnPause = true
+            setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> { previousTouchX = event.x; previousTouchY = event.y; previousPinchDistance = 0f }
+                    MotionEvent.ACTION_POINTER_DOWN -> if (event.pointerCount >= 2) previousPinchDistance = pointerDistance(event)
+                    MotionEvent.ACTION_MOVE -> {
+                        if (event.pointerCount >= 2) {
+                            val current = pointerDistance(event)
+                            if (previousPinchDistance > 0f && current > 0f) renderer.changeView(current / previousPinchDistance, 0f, 0f)
+                            previousPinchDistance = current
+                        } else {
+                            renderer.changeView(1f, event.x - previousTouchX, event.y - previousTouchY)
+                            previousTouchX = event.x; previousTouchY = event.y
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> previousPinchDistance = 0f
+                }
+                true
+            }
         }
         root.addView(glView, FrameLayout.LayoutParams(-1, -1))
         val title = TextView(this).apply {
@@ -68,7 +89,7 @@ class MainActivity : Activity(), LocationListener {
         checkLocationPermission()
     }
 
-    private fun hasLocationPermission(): Boolean =
+    private fun pointerDistance(event: MotionEvent): Float {\n        val dx = event.getX(0) - event.getX(1)\n        val dy = event.getY(0) - event.getY(1)\n        return kotlin.math.sqrt(dx * dx + dy * dy)\n    }\n\n    private fun hasLocationPermission(): Boolean =
         checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
