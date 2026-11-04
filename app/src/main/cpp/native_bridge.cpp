@@ -103,6 +103,13 @@ Java_br_com_observatorioespacial_NativeBridge_nativeInit(JNIEnv *env,jobject,jin
  glEnable(GL_DEPTH_TEST);glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);glClearColor(.008f,.012f,.035f,1.f);
 }
 extern "C" JNIEXPORT void JNICALL
+Java_br_com_observatorioespacial_NativeBridge_nativeSetEphemeris(JNIEnv *env,jobject,jfloatArray values){
+ if(!values)return;jsize n=env->GetArrayLength(values);if(n!=PLANET_COUNT*EPHEMERIS_STEPS*3)return;
+ jfloat *raw=env->GetFloatArrayElements(values,nullptr);if(!raw)return;
+ for(int i=0;i<PLANET_COUNT*EPHEMERIS_STEPS;i++)ephemeris[i]={raw[i*3],raw[i*3+1],raw[i*3+2]};
+ env->ReleaseFloatArrayElements(values,raw,JNI_ABORT);ephemerisReady=true;
+}
+extern "C" JNIEXPORT void JNICALL
 Java_br_com_observatorioespacial_NativeBridge_nativeResize(JNIEnv*,jobject,jint w,jint h){
  surfaceW=std::max(1,(int)w);surfaceH=std::max(1,(int)h);glViewport(0,0,surfaceW,surfaceH);perspective(projection,48.f,(float)surfaceW/surfaceH,.1f,120.f);
 }
