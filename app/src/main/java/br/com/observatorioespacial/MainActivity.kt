@@ -692,9 +692,9 @@ private class NativeSpaceRenderer(
         bridge.nativeRender(seconds, zoom, yaw, pitch)
     }
 
-    fun setUniverseMode(enabled: Boolean) { if (enabled) { zoom = 0.72f; yaw = 0f; pitch = 0.18f } else { zoom = 1f } }
+    override fun setUniverseMode(enabled: Boolean) { if (enabled) { zoom = 0.72f; yaw = 0f; pitch = 0.18f } else { zoom = 1f } }
 
-    fun changeView(scale: Float, dx: Float, dy: Float) {
+    override fun changeView(scale: Float, dx: Float, dy: Float) {
         zoom = (zoom * scale).coerceIn(0.65f, 2.6f)
         yaw += dx * 0.008f
         pitch = (pitch + dy * 0.004f).coerceIn(-0.45f, 0.75f)
