@@ -63,6 +63,19 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - A bússola do céu usa o sensor de rotação do aparelho quando disponível. O GPS fornece latitude, longitude e altitude para cálculos topocêntricos.
 - Na pesquisa de corpos naturais, o JPL Horizons consulta uma janela de 24 horas com amostras de uma hora. A interface mostra um rótulo azul com o limite previsto de visibilidade e um rótulo cinza com o nome e o início da janela prevista. Os horários são UTC e a previsão é aproximada.
 - A previsão depende do horizonte geométrico e não considera nuvens, poluição luminosa, prédios ou árvores.
-- Satélites artificiais ainda fornecem TLE do CelesTrak. A propagação SGP4 ainda precisa ser integrada antes de exibir uma posição ou janela de visibilidade confiável para satélites.
+- Satélites artificiais usam elementos GP/OMM do CelesTrak e propagação SGP4/SDP4 local por meio da biblioteca OrbitCore.
 - O indicador D2D/NTN observa se o Android 15 (API 35+) informa uma rede com transporte satelital ativa. Isso detecta a conectividade do próprio telefone, não todos os satélites no céu, e depende de modem, firmware, operadora e serviço compatíveis.
 - A versão permanece 1.1.0 (versionCode 2).
+
+
+## Catálogo local do céu (inspirado em planetários)
+- Pesquisa local de estrelas brilhantes e objetos de céu profundo, incluindo objetos Messier como M31, M42, M45, M13, M8, M20, M57 e M51.
+- Cada resultado apresenta identificação, tipo, constelação, magnitude visual aproximada e coordenadas equatoriais J2000.
+- Quando há localização disponível, o app calcula azimute e elevação aproximados para a hora atual usando tempo sideral local.
+- O rótulo de visibilidade indica somente se o objeto está acima do horizonte geométrico; não é uma garantia de observação a olho nu.
+- O catálogo é uma seleção inicial própria, não uma cópia do banco de dados do Stellarium e não pretende cobrir todos os objetos.
+- O APK enviado foi inspecionado como referência de estrutura e recursos. Seus bancos de dados, imagens e demais arquivos não foram incorporados ao projeto sem verificação independente de licença e origem.
+
+## Ferramentas de compilação
+- Android Gradle Plugin 8.10.1, Gradle 8.11.1 e compileSdk 36, necessários para atender aos metadados da dependência OrbitCore 0.1.0.
+- targetSdk permanece 35, minSdk permanece 26 e a versão do app continua 1.1.0 (versionCode 2).
