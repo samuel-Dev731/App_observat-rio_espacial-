@@ -264,7 +264,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
                                         setTextColor(Color.WHITE); textSize = 13f
                                     }
                                     panel.addView(blue); panel.addView(gray)
-                                    if (satellite) {
+                                    if (satellite || spacecraft) {
                                         val az = Regex("Azimute: ([0-9.]+)").find(result)?.groupValues?.get(1)?.toFloatOrNull()
                                         val el = Regex("Elevação: (-?[0-9.]+)").find(result)?.groupValues?.get(1)?.toFloatOrNull()
                                         if (az != null && el != null) {
