@@ -7,6 +7,7 @@
 #include <thread>
 #include <vector>
 #include "orbit_math.h"
+#include "constellation_catalog.h"
 
 namespace {
 struct Vec3 { float x,y,z; };
@@ -67,23 +68,27 @@ void createStars(int count){
  std::vector<StarVertex> v;v.reserve((size_t)count+48);unsigned int seed=2026;
  auto rnd=[&](){seed=1664525u*seed+1013904223u;return (seed&0x00ffffffu)/16777216.f;};
  for(int i=0;i<count;i++){float a=rnd()*6.2831853f,z=rnd()*2.f-1.f,r=43.f+rnd()*4.f,q=std::sqrt(1-z*z);float spectral=rnd();float cr=1.f,cg=.91f,cb=.72f;if(spectral<.08f){cr=.55f;cg=.70f;cb=1.f;}else if(spectral<.25f){cr=.86f;cg=.91f;cb=1.f;}else if(spectral<.70f){cr=1.f;cg=.94f;cb=.78f;}else if(spectral<.90f){cr=1.f;cg=.66f;cb=.40f;}else{cr=1.f;cg=.43f;cb=.32f;}float brightness=std::pow(rnd(),7.f);float size=.75f+brightness*2.7f;v.push_back({r*q*std::cos(a),r*z,r*q*std::sin(a),cr,cg,cb,size});}
- struct CatalogStar {const char* name;float ra,dec,mag;};
- const CatalogStar bright[]={
- {"Sirius",6.7525f,-16.716f,-1.46f},{"Canopus",6.3992f,-52.696f,-.74f},{"Arcturus",14.261f,19.182f,-.05f},{"Vega",18.6156f,38.784f,.03f},{"Capella",5.2782f,45.998f,.08f},{"Rigel",5.2423f,-8.202f,.13f},{"Procyon",7.655f,5.225f,.34f},{"Betelgeuse",5.9195f,7.407f,.42f},{"Achernar",1.6286f,-57.237f,.46f},{"Hadar",14.063f,-60.373f,.61f},{"Altair",19.8464f,8.868f,.77f},{"Acrux",12.4433f,-63.099f,.76f},{"Aldebaran",4.5987f,16.509f,.85f},{"Spica",13.4199f,-11.161f,.98f},{"Antares",16.4901f,-26.432f,1.06f},{"Pollux",7.7553f,28.026f,1.14f},{"Fomalhaut",22.9608f,-29.622f,1.16f},{"Deneb",20.6905f,45.280f,1.25f},{"Regulus",10.1395f,11.967f,1.35f},{"Polaris",2.5303f,89.264f,1.98f},
- {"Bellatrix",5.4189f,6.35f,1.64f},{"Alnitak",5.6793f,-1.94f,1.74f},{"Alnilam",5.6036f,-1.20f,1.69f},{"Mintaka",5.5334f,-.30f,2.23f},{"Saiph",5.7959f,-9.67f,2.06f},{"Mimosa",12.7953f,-59.689f,1.25f},{"Gacrux",12.5194f,-57.113f,1.63f},{"DeltaCrux",12.2524f,-58.749f,2.79f},{"Dubhe",11.0621f,61.751f,1.79f},{"Merak",11.0307f,56.382f,2.37f},{"Phecda",11.8972f,53.694f,2.44f},{"Megrez",12.2571f,57.032f,3.31f},{"Alioth",12.9005f,55.960f,1.77f},{"Mizar",13.3987f,54.925f,2.23f},{"Alkaid",13.7923f,49.313f,1.86f},{"Denebola",11.8177f,14.572f,2.14f},{"Algieba",10.3329f,19.842f,2.08f},{"Zosma",11.2351f,20.524f,2.56f},{"Chertan",11.2373f,15.429f,3.34f},{"Sadr",20.3705f,40.257f,2.23f},{"Albireo",19.512f,27.96f,3.08f},{"Gienah",20.770f,33.97f,2.46f}};
- for(const auto &s:bright){float ra=s.ra*.261799388f,dec=s.dec*.017453293f,cd=std::cos(dec),r=44.f;float size=std::max(2.0f,std::min(5.2f,5.0f-(s.mag+1.46f)*.72f));float cr=s.mag<.5f?1.f:.78f,cg=s.mag<.5f?.88f:.88f,cb=s.mag<.5f?.68f:1.f;if(std::string(s.name)=="Betelgeuse"){cr=1.f;cg=.40f;cb=.24f;}if(std::string(s.name)=="Rigel"||std::string(s.name)=="Vega"){cr=.62f;cg=.78f;cb=1.f;}v.push_back({r*cd*std::cos(ra),r*std::sin(dec),r*cd*std::sin(ra),cr,cg,cb,size});}
+
+ // Catálogo astrométrico: 725 estrelas HYG, incluindo todas as usadas nas figuras.
+ for (const auto &s : sky::kStars) {
+  const float mag = s.mag10 / 10.0f;
+  const float radius = 44.0f;
+  const float size = std::max(0.85f, std::min(5.2f, 4.7f - (mag + 1.46f) * 0.72f));
+  float cr=0.82f,cg=0.89f,cb=1.0f;
+  if (mag < 0.5f) { cr=1.0f; cg=0.91f; cb=0.72f; }
+  v.push_back({radius*s.x/10000.0f, radius*s.z/10000.0f, radius*s.y/10000.0f, cr,cg,cb,size});
+ }
  starCount=(GLsizei)v.size();upload(starVbo,v.data(),v.size()*sizeof(StarVertex),GL_ARRAY_BUFFER);
 }
 void createConstellationLines(){
- struct P{float ra,dec;};auto xyz=[](P p){float ra=p.ra*.261799388f,dec=p.dec*.017453293f,cd=std::cos(dec);return Vec3{44.f*cd*std::cos(ra),44.f*std::sin(dec),44.f*cd*std::sin(ra)};};
- std::vector<float> v;auto seg=[&](P a,P b){Vec3 p=xyz(a),q=xyz(b);v.insert(v.end(),{p.x,p.y,p.z,q.x,q.y,q.z});};
- const P o[]={{5.9195f,7.407f},{5.4189f,6.35f},{5.6793f,-1.94f},{5.6036f,-1.20f},{5.5334f,-.30f},{5.7959f,-9.67f},{5.2423f,-8.202f}};
- seg(o[0],o[1]);seg(o[1],o[2]);seg(o[2],o[3]);seg(o[3],o[4]);seg(o[4],o[1]);seg(o[2],o[5]);seg(o[5],o[6]);seg(o[6],o[2]);
- const P cr[]={{12.4433f,-63.099f},{12.7953f,-59.689f},{12.5194f,-57.113f},{12.2524f,-58.749f}};seg(cr[0],cr[2]);seg(cr[1],cr[3]);
- const P u[]={{11.0621f,61.751f},{11.0307f,56.382f},{11.8972f,53.694f},{12.2571f,57.032f},{12.9005f,55.960f},{13.3987f,54.925f},{13.7923f,49.313f}};for(int i=0;i<6;i++)seg(u[i],u[i+1]);
- const P l[]={{10.1395f,11.967f},{10.3329f,19.842f},{11.2351f,20.524f},{11.8177f,14.572f}};seg(l[0],l[1]);seg(l[1],l[2]);seg(l[2],l[3]);seg(l[3],l[0]);
- const P cy[]={{20.6905f,45.280f},{20.3705f,40.257f},{19.512f,27.96f},{20.770f,33.97f}};seg(cy[0],cy[1]);seg(cy[1],cy[2]);seg(cy[1],cy[3]);
- constellationVertexCount=(GLsizei)(v.size()/3);upload(constellationVbo,v.data(),v.size()*sizeof(float),GL_ARRAY_BUFFER);
+ std::vector<float> v;
+ v.reserve((size_t)sky::kLineCount * 2 * 3);
+ for (int i=0; i<sky::kLineCount*2; ++i) {
+  const sky::Star &s = sky::kStars[sky::kLines[i]];
+  v.insert(v.end(), {44.0f*s.x/10000.0f, 44.0f*s.z/10000.0f, 44.0f*s.y/10000.0f});
+ }
+ constellationVertexCount=(GLsizei)(v.size()/3);
+ upload(constellationVbo,v.data(),v.size()*sizeof(float),GL_ARRAY_BUFFER);
 }
 void createMilkyWay(int count){
  std::vector<float> v;v.reserve((size_t)count*3);unsigned int seed=7312026u;
