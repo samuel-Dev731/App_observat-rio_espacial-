@@ -79,3 +79,12 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 ## Ferramentas de compilação
 - Android Gradle Plugin 8.10.1, Gradle 8.11.1 e compileSdk 36, necessários para atender aos metadados da dependência OrbitCore 0.1.0.
 - targetSdk permanece 35, minSdk permanece 26 e a versão do app continua 1.1.0 (versionCode 2).
+
+
+## Campo estelar 3D e constelações
+- O renderizador OpenGL ES 2.0 agora desenha um campo de estrelas em coordenadas esféricas, com estrelas brilhantes posicionadas por ascensão reta e declinação J2000 aproximadas.
+- Cor e tamanho aparente variam por estrela; pontos usam brilho circular suave no shader.
+- Linhas de referência conectam estrelas de Órion, Cruzeiro do Sul, Ursa Maior, Leão e Cisne.
+- O fundo estelar mantém uma camada procedural de estrelas fracas e a Via Láctea; o catálogo brilhante fica sobreposto a esse fundo.
+- A visualização é uma esfera celeste didática em 3D, não uma simulação de distâncias reais entre estrelas. As posições e linhas de constelações são aproximadas e não substituem efemérides astrométricas de precisão.
+- A quantidade de estrelas e partículas continua adaptada ao perfil de memória/GPU do aparelho.
