@@ -1,12 +1,12 @@
 # Observatório Espacial 🛰️
 
-**Versão 1.1.0** — aplicativo Android de exploração espacial.
+**Versão 1.2.5** — aplicativo Android de exploração espacial.
 
 ## Compatibilidade
 - Android 8.0 (API 26) ou superior.
 - ABIs Android NDK: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` (Intel 32 bits) e `x86_64` (Intel 64 bits).
 - OpenGL ES 2.0 como perfil gráfico mínimo. Em aparelhos com drivers ES 3.x, o aplicativo usa um contexto ES 2.0 compatível.
-- Kotlin 2.2.20, Android SDK, CMake 3.22.1 e JDK 17 para compilação.
+- Kotlin 2.4.0, Android SDK, CMake 3.22.1 e JDK 17 para compilação.
 
 ## Motor 3D nativo
 - O desenho da cena 3D foi transferido para C++ no Android NDK.
@@ -43,7 +43,7 @@ A localização é processada no aparelho e exibida na tela; esta versão não e
 C# ainda não foi incorporado. O aplicativo usa Kotlin para integração Android, C e C++ para cálculo/renderização nativa. Adicionar .NET para Android apenas para misturar linguagens aumentaria a complexidade e não aceleraria automaticamente a GPU.
 
 ## Compilação
-O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 8.9 a cada push na branch `main`. Quando a compilação terminar, o APK de depuração será publicado como artefato `observatorio-espacial-debug` na execução do workflow.
+O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 8.11.1 a cada push na branch `main`. Quando a compilação terminar, o APK de depuração será publicado como artefato `observatorio-espacial-debug` na execução do workflow.
 
 
 ## Pesquisa de objetos celestes
@@ -65,7 +65,7 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - A previsão depende do horizonte geométrico e não considera nuvens, poluição luminosa, prédios ou árvores.
 - Satélites artificiais usam elementos GP/OMM do CelesTrak e propagação SGP4/SDP4 local por meio da biblioteca OrbitCore.
 - O indicador D2D/NTN observa se o Android 15 (API 35+) informa uma rede com transporte satelital ativa. Isso detecta a conectividade do próprio telefone, não todos os satélites no céu, e depende de modem, firmware, operadora e serviço compatíveis.
-- A versão permanece 1.1.0 (versionCode 2).
+- A versão permanece 1.1.0 (versionCode 3).
 
 
 ## Catálogo local do céu (inspirado em planetários)
@@ -78,7 +78,7 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 
 ## Ferramentas de compilação
 - Android Gradle Plugin 8.10.1, Gradle 8.11.1 e compileSdk 36, necessários para atender aos metadados da dependência OrbitCore 0.1.0.
-- targetSdk permanece 35, minSdk permanece 26 e a versão do app continua 1.1.0 (versionCode 2).
+- targetSdk permanece 35, minSdk permanece 26 e a versão do app continua 1.2.5 (versionCode 3).
 
 
 ## Campo estelar 3D e constelações
@@ -88,3 +88,11 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - O fundo estelar mantém uma camada procedural de estrelas fracas e a Via Láctea; o catálogo brilhante fica sobreposto a esse fundo.
 - A visualização é uma esfera celeste didática em 3D, não uma simulação de distâncias reais entre estrelas. As posições e linhas de constelações são aproximadas e não substituem efemérides astrométricas de precisão.
 - A quantidade de estrelas e partículas continua adaptada ao perfil de memória/GPU do aparelho.
+
+
+## Campo estelar expandido — versão 1.2.5
+- O perfil gráfico alto gera mais de 1 milhão de estrelas procedurais (1.000.000 pontos de fundo, além das estrelas brilhantes catalogadas no código).
+- Perfis médio e econômico reduzem a quantidade desenhada para 300 mil e 100 mil pontos, respectivamente, para limitar uso de memória e carga da GPU em celulares modestos.
+- As estrelas recebem classes de cor aproximadas (azul, branco, amarelo, laranja e vermelho) e tamanhos/brilhos aparentes variados. A distribuição é sintética e serve para visualização, não é um catálogo científico medido.
+- As linhas de constelações continuam sendo padrões didáticos aproximados; esta versão não contém milhões de constelações. A União Astronômica Internacional reconhece 88 constelações oficiais. Um catálogo real com milhões de estrelas/objetos (meta futura de 7 milhões) exige dados astrométricos licenciados, armazenamento compacto e carregamento por setores, não a criação de pontos aleatórios.
+- Versão Android: 1.2.5 (versionCode 3), Android mínimo 8.0 (API 26).
