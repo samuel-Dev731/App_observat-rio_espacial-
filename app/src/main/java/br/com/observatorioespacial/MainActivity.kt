@@ -57,7 +57,8 @@ private class NativeBridge {
 class MainActivity : Activity(), LocationListener, SensorEventListener {
     private lateinit var glView: GLSurfaceView
     private var nativeBridge: NativeBridge? = null
-    private lateinit var spaceRenderer: SpaceRendererControls
+    private lateinit var spaceRenderer: GLSurfaceView.Renderer
+    private lateinit var rendererControls: SpaceRendererControls
     private lateinit var locationLabel: TextView
     private lateinit var graphicsLabel: TextView
     private lateinit var dataLabel: TextView
@@ -86,15 +87,19 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
                 setEGLContextClientVersion(2)
                 val bridge = NativeBridge()
                 nativeBridge = bridge
-                spaceRenderer = NativeSpaceRenderer(bridge, applicationContext) { info ->
+                val renderer = NativeSpaceRenderer(bridge, applicationContext) { info ->
                     runOnUiThread { graphicsLabel.text = info }
                 }
+                spaceRenderer = renderer
+                rendererControls = renderer
             } else {
                 // GPUs ES 1.0/1.1 usam renderização fixa GL10, sem chamar funções GLES2.
                 setEGLContextClientVersion(1)
-                spaceRenderer = LegacySpaceRenderer(applicationContext) { info ->
+                val renderer = LegacySpaceRenderer(applicationContext) { info ->
                     runOnUiThread { graphicsLabel.text = info }
                 }
+                spaceRenderer = renderer
+                rendererControls = renderer
             }
             setRenderer(spaceRenderer)
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
@@ -110,10 +115,10 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
                     MotionEvent.ACTION_MOVE -> {
                         if (event.pointerCount >= 2) {
                             val current = pointerDistance(event)
-                            if (previousPinchDistance > 0f && current > 0f) spaceRenderer.changeView(current / previousPinchDistance, 0f, 0f)
+                            if (previousPinchDistance > 0f && current > 0f) rendererControls.changeView(current / previousPinchDistance, 0f, 0f)
                             previousPinchDistance = current
                         } else {
-                            spaceRenderer.changeView(1f, event.x - previousTouchX, event.y - previousTouchY)
+                            rendererControls.changeView(1f, event.x - previousTouchX, event.y - previousTouchY)
                             previousTouchX = event.x
                             previousTouchY = event.y
                         }
@@ -160,7 +165,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
             setBackgroundColor(Color.argb(210, 25, 65, 105))
             setOnClickListener {
                 universeLiveMode = !universeLiveMode
-                spaceRenderer.setUniverseMode(universeLiveMode)
+                rendererControls.setUniverseMode(universeLiveMode)
                 text = if (universeLiveMode) "◉  MODO LIVE • UNIVERSO INTEIRO" else "◎  EXPLORAÇÃO LIVRE 3D"
                 dataLabel.text = if (universeLiveMode) "UNIVERSO LIVE • cena 3D animada e efemérides NASA/JPL quando disponíveis" else "Exploração livre • arraste para girar e pinça para aproximar"
             }
