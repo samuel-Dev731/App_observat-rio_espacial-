@@ -153,7 +153,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
             topMargin = dp(116); leftMargin = dp(14); rightMargin = dp(14)
         })
         val searchObjectsButton = TextView(this).apply {
-            text = "⌕  PESQUISAR SATÉLITES, COMETAS E OUTROS"
+            text = "⌕  PESQUISAR SATÉLITES, ESTRELAS E GALÁXIAS"
             setTextColor(Color.WHITE); textSize = 12f; gravity = Gravity.CENTER
             setPadding(dp(14), dp(10), dp(14), dp(10))
             setBackgroundColor(Color.argb(205, 18, 48, 78))
