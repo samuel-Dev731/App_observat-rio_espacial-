@@ -110,7 +110,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         root.addView(glView, FrameLayout.LayoutParams(-1, -1))
 
         val title = TextView(this).apply {
-            text = "OBSERVATÓRIO ESPACIAL • MOTOR 3D NATIVO"
+            text = "OBSERVATÓRIO ESPACIAL • UNIVERSO 3D + ESTRELAS"
             setTextColor(Color.WHITE)
             textSize = 15f
             setPadding(18, 24, 18, 8)
@@ -119,7 +119,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         root.addView(title, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
 
         graphicsLabel = TextView(this).apply {
-            text = "Detectando GPU e perfil gráfico…"
+            text = "Preparando campo estelar, constelações e GPU…"
             setTextColor(Color.rgb(170, 210, 255))
             textSize = 10f
             setPadding(18, 4, 18, 4)
