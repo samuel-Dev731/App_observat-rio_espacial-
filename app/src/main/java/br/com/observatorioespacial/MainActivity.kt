@@ -230,16 +230,17 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
     private fun showObjectSearch() {
         AlertDialog.Builder(this)
             .setTitle("Pesquisar objetos celestes")
-            .setItems(arrayOf("Cometas, asteroides, planetas-anões e luas", "Satélites artificiais (ISS, Hubble etc.)", "Estrelas, constelações e objetos Messier")) { _, choice ->
+            .setItems(arrayOf("Cometas, asteroides, planetas-anões e luas", "Satélites artificiais (ISS, Hubble etc.)", "Estrelas, constelações e objetos Messier", "Sondas e telescópios espaciais (NASA/JPL)")) { _, choice ->
                 val satellite = choice == 1
                 val skyCatalog = choice == 2
+                val spacecraft = choice == 3
                 val field = EditText(this).apply {
-                    hint = when { satellite -> "Nome ou número NORAD (ex.: ISS)"; skyCatalog -> "Nome ou catálogo (ex.: Sírius, M31, M42)"; else -> "Nome ou designação (ex.: 1P/Halley)" }
+                    hint = when { satellite -> "Nome ou número NORAD (ex.: ISS)"; skyCatalog -> "Nome ou catálogo (ex.: Sírius, M31, M42)"; spacecraft -> "Ex.: Voyager 1, New Horizons, Juno, Hubble"; else -> "Nome ou designação (ex.: 1P/Halley)" }
                     setSingleLine(true)
                     setPadding(dp(16), dp(12), dp(16), dp(12))
                 }
                 AlertDialog.Builder(this)
-                    .setTitle(when { satellite -> "Buscar satélite"; skyCatalog -> "Buscar no catálogo do céu"; else -> "Buscar corpo celeste" })
+                    .setTitle(when { satellite -> "Buscar satélite"; skyCatalog -> "Buscar no catálogo do céu"; spacecraft -> "Buscar sonda ou telescópio"; else -> "Buscar corpo celeste" })
                     .setView(field)
                     .setNegativeButton("Cancelar", null)
                     .setPositiveButton("Pesquisar") { _, _ ->
@@ -275,7 +276,19 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
                                     AlertDialog.Builder(this).setTitle("Resultado da pesquisa").setView(panel).setPositiveButton("Fechar", null).show()
                                 }
                             }
-                            if (satellite) {
+                            if (spacecraft) {
+                                val observer = currentLocation
+                                if (observer == null) {
+                                    AlertDialog.Builder(this)
+                                        .setMessage("Ative a localização para calcular a posição da missão em relação ao seu céu.")
+                                        .setPositiveButton("OK", null).show()
+                                } else {
+                                    SpacecraftCatalogService.search(
+                                        query, observer.latitude, observer.longitude,
+                                        if (observer.hasAltitude()) observer.altitude else 0.0, done
+                                    )
+                                }
+                            } else if (satellite) {
                                 val observer = currentLocation
                                 if (observer == null) {
                                     AlertDialog.Builder(this)
