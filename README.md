@@ -102,3 +102,13 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - As estrelas recebem classes de cor aproximadas (azul, branco, amarelo, laranja e vermelho) e tamanhos/brilhos aparentes variados. A distribuição é sintética e serve para visualização, não é um catálogo científico medido.
 - As linhas de constelações continuam sendo padrões didáticos aproximados; esta versão não contém milhões de constelações. A União Astronômica Internacional reconhece 88 constelações oficiais. Um catálogo real com milhões de estrelas/objetos (meta futura de 7 milhões) exige dados astrométricos licenciados, armazenamento compacto e carregamento por setores, não a criação de pontos aleatórios.
 - Versão Android: 1.2.5 (versionCode 3), Android mínimo 8.0 (API 26).
+
+## Sondas e telescópios espaciais — NASA/JPL
+- A pesquisa de objetos agora inclui uma categoria para sondas e observatórios espaciais, consultando efemérides do JPL Horizons por meio da API oficial.
+- Catálogo inicial: Voyager 1, Voyager 2, New Horizons, Parker Solar Probe, Juno, Hubble, JUICE, Hayabusa2, SOHO e Lucy.
+- O app usa identificadores NAIF/JPL de alvos espaciais e solicita posições observáveis para a localização GPS do usuário: ascensão reta, declinação, azimute e elevação, quando disponíveis.
+- As consultas usam a API pública NASA/JPL Horizons; não exigem chave NASA para este serviço. A disponibilidade de cada missão depende do intervalo de dados existente no Horizons.
+- Os dados representam efemérides calculadas pelo JPL, não telemetria de bordo em tempo real, comunicação de rádio, vídeo ao vivo ou controle remoto das sondas.
+- Satélites artificiais em órbita terrestre continuam usando CelesTrak/NORAD + SGP4/SDP4; sondas interplanetárias e telescópios espaciais usam JPL Horizons.
+- Documentação: https://ssd-api.jpl.nasa.gov/doc/horizons.html e https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/FORTRAN/req/naif_ids.html.
+- Esta evolução mantém a versão Android em 1.2.5 (versionCode 3).
