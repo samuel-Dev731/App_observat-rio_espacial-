@@ -5,7 +5,8 @@
 ## Compatibilidade
 - Android 8.0 (API 26) ou superior.
 - ABIs Android NDK: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` (Intel 32 bits) e `x86_64` (Intel 64 bits).
-- OpenGL ES 2.0 como perfil gráfico mínimo. Em aparelhos com drivers ES 3.x, o aplicativo usa um contexto ES 2.0 compatível.
+- OpenGL ES 1.0/1.1: renderizador alternativo GL10 com catálogo estelar e figuras das 88 constelações.
+- OpenGL ES 2.0: renderizador nativo C++ com shaders e cena 3D; aparelhos ES 3.x usam o caminho ES 2.0 compatível.
 - Kotlin 2.4.0, Android SDK, CMake 3.22.1 e JDK 17 para compilação.
 
 ## Motor 3D nativo
@@ -28,16 +29,21 @@
 - O perfil é uma heurística inicial baseada em limites reportados, não um benchmark completo nem uma garantia de FPS. O aparelho pode ter desempenho inferior devido a throttling térmico, drivers ou outras aplicações.
 
 ## CPU e GPU: o que realmente acontece
-- O código de cena, geração de geometria, cálculo orbital e preparação dos comandos roda em C++ na CPU.
+- O código de cena, geração de geometria, cálculo orbital e preparação dos comandos roda em C++ na CPU. Em ES 1.x, a cena celeste usa a API fixa GL10; em ES 2.0 e superiores, usa shaders GLES2.
 - As chamadas OpenGL ES são encaminhadas pelo driver Android à GPU, que executa o trabalho gráfico compatível com o hardware.
 - C++ não acessa diretamente registradores ou controla livremente clocks/voltagens da CPU/GPU; isso é gerenciado pelo sistema operacional e pelo driver.
-- A implementação atual usa OpenGL ES 2.0. Ela não ativa automaticamente recursos exclusivos de ES 3.0/3.1/3.2, nem implementa ES 1.x. Um aparelho ES 3.x pode executar este caminho ES 2.0 por compatibilidade, mas não aproveita ainda todos os recursos modernos.
+- A implementação oferece um caminho GL10 para OpenGL ES 1.0/1.1 e um caminho GLES2 para ES 2.0 ou superior. Em dispositivos ES 3.x, o app usa contexto ES 2.0 por compatibilidade; não ativa automaticamente recursos exclusivos de ES 3.0/3.1/3.2. A versão ES 1.x é uma cena celeste de compatibilidade, sem os planetas 3D avançados do caminho GLES2.
 - Dispositivos sem suporte a OpenGL ES 2.0 não são compatíveis com a renderização 3D atual.
 
 ## Limites e precisão
-A cena é uma base visual/educativa inspirada em planetários como o Stellarium. As posições orbitais dos oito planetas usam vetores do JPL Horizons, calculados numericamente para a janela consultada e animados por interpolação. A escala e o tamanho visual dos planetas são ajustados para a visualização, portanto não estão em escala física. A galeria usa imagens do NASA Image and Video Library. As imagens são registros de missões e observatórios, não vídeo ao vivo; a Via Láctea e o campo estelar ainda são procedurais e não um catálogo astrométrico. A orientação precisa do céu local, constelações científicas e texturas de superfície mapeadas aos modelos 3D ainda serão etapas futuras. Nenhum aplicativo consegue exibir literalmente todo o Universo em transmissão ao vivo: observações têm limites de cobertura, resolução e atraso.
+A cena é uma base visual/educativa inspirada em planetários como o Stellarium. As posições orbitais dos oito planetas usam vetores do JPL Horizons, calculados numericamente para a janela consultada e animados por interpolação. A escala e o tamanho visual dos planetas são ajustados para a visualização, portanto não estão em escala física. A galeria usa imagens do NASA Image and Video Library. As imagens são registros de missões e observatórios, não vídeo ao vivo; a Via Láctea e o campo estelar ainda são procedurais e não um catálogo astrométrico. O catálogo integrado contém 725 estrelas e as 676 ligações estelares das 88 constelações ocidentais oficiais; os traços são figuras de referência do Stellarium associadas a posições do catálogo HYG/Hipparcos. A orientação astronômica ainda não é corrigida dinamicamente para precessão, nutação, refração ou horizonte topocêntrico. Nenhum aplicativo consegue exibir literalmente todo o Universo em transmissão ao vivo: observações têm limites de cobertura, resolução e atraso.
 
 A localização é processada no aparelho e exibida na tela; esta versão não envia coordenadas a servidores.
+
+## Catálogo de constelações
+- 88 constelações ocidentais, com abreviação IAU, identificação em lista e desenhos conectados por segmentos estelares.
+- 725 estrelas com posições e magnitudes catalogadas; 676 segmentos de ligação.
+- As fontes e licenças dos dados estão documentadas em `THIRD_PARTY_NOTICES.md`.
 
 ## C# e linguagens
 C# ainda não foi incorporado. O aplicativo usa Kotlin para integração Android, C e C++ para cálculo/renderização nativa. Adicionar .NET para Android apenas para misturar linguagens aumentaria a complexidade e não aceleraria automaticamente a GPU.
