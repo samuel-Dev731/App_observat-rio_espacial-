@@ -66,7 +66,7 @@ void createSphere(int latBands,int lonBands){
 void createStars(int count){
  std::vector<StarVertex> v;v.reserve((size_t)count+48);unsigned int seed=2026;
  auto rnd=[&](){seed=1664525u*seed+1013904223u;return (seed&0x00ffffffu)/16777216.f;};
- for(int i=0;i<count;i++){float a=rnd()*6.2831853f,z=rnd()*2.f-1.f,r=43.f+rnd()*4.f,q=std::sqrt(1-z*z);float warm=rnd();float cr=warm>.82f?1.f:.68f,cg=warm>.82f?.78f:.82f,cb=warm>.82f?.55f:1.f;v.push_back({r*q*std::cos(a),r*z,r*q*std::sin(a),cr,cg,cb,.8f+rnd()*1.0f});}
+ for(int i=0;i<count;i++){float a=rnd()*6.2831853f,z=rnd()*2.f-1.f,r=43.f+rnd()*4.f,q=std::sqrt(1-z*z);float spectral=rnd();float cr=1.f,cg=.91f,cb=.72f;if(spectral<.08f){cr=.55f;cg=.70f;cb=1.f;}else if(spectral<.25f){cr=.86f;cg=.91f;cb=1.f;}else if(spectral<.70f){cr=1.f;cg=.94f;cb=.78f;}else if(spectral<.90f){cr=1.f;cg=.66f;cb=.40f;}else{cr=1.f;cg=.43f;cb=.32f;}float brightness=std::pow(rnd(),7.f);float size=.75f+brightness*2.7f;v.push_back({r*q*std::cos(a),r*z,r*q*std::sin(a),cr,cg,cb,size});}
  struct CatalogStar {const char* name;float ra,dec,mag;};
  const CatalogStar bright[]={
  {"Sirius",6.7525f,-16.716f,-1.46f},{"Canopus",6.3992f,-52.696f,-.74f},{"Arcturus",14.261f,19.182f,-.05f},{"Vega",18.6156f,38.784f,.03f},{"Capella",5.2782f,45.998f,.08f},{"Rigel",5.2423f,-8.202f,.13f},{"Procyon",7.655f,5.225f,.34f},{"Betelgeuse",5.9195f,7.407f,.42f},{"Achernar",1.6286f,-57.237f,.46f},{"Hadar",14.063f,-60.373f,.61f},{"Altair",19.8464f,8.868f,.77f},{"Acrux",12.4433f,-63.099f,.76f},{"Aldebaran",4.5987f,16.509f,.85f},{"Spica",13.4199f,-11.161f,.98f},{"Antares",16.4901f,-26.432f,1.06f},{"Pollux",7.7553f,28.026f,1.14f},{"Fomalhaut",22.9608f,-29.622f,1.16f},{"Deneb",20.6905f,45.280f,1.25f},{"Regulus",10.1395f,11.967f,1.35f},{"Polaris",2.5303f,89.264f,1.98f},
@@ -124,7 +124,7 @@ Java_br_com_observatorioespacial_NativeBridge_nativeInit(JNIEnv *env,jobject,jin
  if(!createProgram()){gpuInfo+=" | erro ao criar shaders";return;}
  glGenBuffers(PLANET_COUNT,ephemerisOrbitVbos);
  createSphere(quality==2?56:(quality==1?40:24),quality==2?72:(quality==1?56:32));
- createStars(quality==2?4200:(quality==1?2400:1000));createConstellationLines();createMilkyWay(quality==2?11000:(quality==1?6000:2600));
+ createStars(quality==2?1000000:(quality==1?300000:100000));createConstellationLines();createMilkyWay(quality==2?11000:(quality==1?6000:2600));
  glEnable(GL_DEPTH_TEST);glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);glClearColor(.008f,.012f,.035f,1.f);
 }
 extern "C" JNIEXPORT void JNICALL
