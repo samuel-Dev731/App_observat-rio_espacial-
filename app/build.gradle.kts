@@ -15,8 +15,8 @@ android {
         applicationId = "br.com.observatorioespacial"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.5"
 
         // ABIs oficiais suportadas pelo Android NDK.
         // Inclui ARM 32/64 bits e x86 32/64 bits.
@@ -34,8 +34,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     externalNativeBuild {
