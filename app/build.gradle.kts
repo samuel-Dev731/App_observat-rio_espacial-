@@ -9,7 +9,7 @@ dependencies {
 
 android {
     namespace = "br.com.observatorioespacial"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "br.com.observatorioespacial"
