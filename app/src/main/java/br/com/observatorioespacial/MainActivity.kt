@@ -33,13 +33,14 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.util.Locale
+import org.json.JSONObject
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.math.sqrt
 
 private interface SpaceRendererControls {
-    override fun setUniverseMode(enabled: Boolean)
-    override fun changeView(scale: Float, dx: Float, dy: Float)
+    fun setUniverseMode(enabled: Boolean)
+    fun changeView(scale: Float, dx: Float, dy: Float)
 }
 
 private class NativeBridge {
@@ -91,7 +92,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
             } else {
                 // GPUs ES 1.0/1.1 usam renderização fixa GL10, sem chamar funções GLES2.
                 setEGLContextClientVersion(1)
-                spaceRenderer = LegacySpaceRenderer { info ->
+                spaceRenderer = LegacySpaceRenderer(applicationContext) { info ->
                     runOnUiThread { graphicsLabel.text = info }
                 }
             }
@@ -177,12 +178,22 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         root.addView(searchObjectsButton, FrameLayout.LayoutParams(-1, dp(44), Gravity.TOP).apply {
             topMargin = dp(164); leftMargin = dp(14); rightMargin = dp(14)
         })
+        val constellationButton = TextView(this).apply {
+            text = "✦  88 CONSTELAÇÕES OFICIAIS"
+            setTextColor(Color.WHITE); textSize = 12f; gravity = Gravity.CENTER
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            setBackgroundColor(Color.argb(205, 30, 62, 95))
+            setOnClickListener { showConstellationList() }
+        }
+        root.addView(constellationButton, FrameLayout.LayoutParams(-1, dp(40), Gravity.TOP).apply {
+            topMargin = dp(212); leftMargin = dp(14); rightMargin = dp(14)
+        })
         d2dLabel = TextView(this).apply {
             text = if (Build.VERSION.SDK_INT >= 35) "D2D/NTN: verificando rede satelital…" else "D2D/NTN: Android 15+ e modem/operadora compatíveis necessários"
             setTextColor(Color.LTGRAY); textSize = 9f; setPadding(dp(16), dp(2), dp(16), dp(2))
             setShadowLayer(5f, 0f, 1f, Color.BLACK)
         }
-        root.addView(d2dLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = dp(210) })
+        root.addView(d2dLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = dp(258) })
 
         locationLabel = TextView(this).apply {
             text = "Solicitando localização…"
@@ -294,6 +305,32 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
             }
             .setNegativeButton("Cancelar", null)
             .show()
+    }
+
+    private fun showConstellationList() {
+        try {
+            val root = JSONObject(assets.open("constellation_catalog.json").bufferedReader().use { it.readText() })
+            val list = root.getJSONArray("constellations")
+            val entries = Array(list.length()) { i ->
+                val item = list.getJSONObject(i)
+                "${item.getString("name")} (${item.getString("abbr")})"
+            }
+            AlertDialog.Builder(this)
+                .setTitle("88 constelações oficiais")
+                .setItems(entries) { _, index ->
+                    val item = list.getJSONObject(index)
+                    AlertDialog.Builder(this)
+                        .setTitle(item.getString("name"))
+                        .setMessage("Identificação: ${item.getString("abbr")}\nLigações estelares: ${item.getInt("count")} segmentos\nDados de estrelas: catálogo HYG/Hipparcos.")
+                        .setPositiveButton("Fechar", null)
+                        .show()
+                }
+                .setNegativeButton("Fechar", null)
+                .show()
+        } catch (_: Exception) {
+            AlertDialog.Builder(this).setMessage("Não foi possível carregar o catálogo de constelações.")
+                .setPositiveButton("OK", null).show()
+        }
     }
 
     private fun addNasaImageGallery(root: FrameLayout) {
@@ -504,6 +541,7 @@ private class SkyCompassView(context: Context) : View(context) {
  * Usa apenas a API fixa GL10; não depende de shaders nem da biblioteca GLES2.
  */
 private class LegacySpaceRenderer(
+    private val appContext: Context,
     private val onProfile: (String) -> Unit
 ) : GLSurfaceView.Renderer, SpaceRendererControls {
     @Volatile private var zoom = 1f
@@ -524,13 +562,53 @@ private class LegacySpaceRenderer(
             position(0)
         }
 
+    private val catalogStarPositions: FloatArray
+    private val constellationLinePositions: FloatArray
+    private val catalogStarBuffer: java.nio.FloatBuffer
+    private val constellationLineBuffer: java.nio.FloatBuffer
+    private val catalogConstellationCount: Int
+
+    init {
+        val parsed = try {
+            val root = JSONObject(appContext.assets.open("constellation_catalog.json").bufferedReader().use { it.readText() })
+            val sourceStars = root.getJSONArray("stars")
+            val positions = FloatArray(sourceStars.length() * 3)
+            for (i in 0 until sourceStars.length()) {
+                val star = sourceStars.getJSONArray(i)
+                positions[i*3] = star.getInt(0) / 10000f
+                positions[i*3+1] = star.getInt(2) / 10000f
+                positions[i*3+2] = star.getInt(1) / 10000f
+            }
+            val sourceLines = root.getJSONArray("lines")
+            val linePositions = FloatArray(sourceLines.length() * 3)
+            for (i in 0 until sourceLines.length()) {
+                val p = sourceStars.getJSONArray(sourceLines.getInt(i))
+                linePositions[i*3] = p.getInt(0) / 10000f
+                linePositions[i*3+1] = p.getInt(2) / 10000f
+                linePositions[i*3+2] = p.getInt(1) / 10000f
+            }
+            Triple(positions, linePositions, root.getJSONArray("constellations").length())
+        } catch (_: Exception) {
+            Triple(FloatArray(0), FloatArray(0), 0)
+        }
+        catalogStarPositions = parsed.first
+        constellationLinePositions = parsed.second
+        catalogConstellationCount = parsed.third
+        catalogStarBuffer = java.nio.ByteBuffer.allocateDirect(catalogStarPositions.size * 4)
+            .order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer().apply { put(catalogStarPositions); position(0) }
+        constellationLineBuffer = java.nio.ByteBuffer.allocateDirect(constellationLinePositions.size * 4)
+            .order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer().apply { put(constellationLinePositions); position(0) }
+    }
+
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         gl ?: return
         gl.glClearColor(0.005f, 0.008f, 0.025f, 1f)
         gl.glEnable(GL10.GL_DEPTH_TEST)
         gl.glEnable(GL10.GL_POINT_SMOOTH)
+        gl.glEnable(GL10.GL_BLEND)
+        gl.glBlendFunc(GL10.GL_SRC_ALPHA, GL10.GL_ONE_MINUS_SRC_ALPHA)
         gl.glHint(GL10.GL_PERSPECTIVE_CORRECTION_HINT, GL10.GL_NICEST)
-        onProfile("OpenGL ES 1.x • renderizador GL10 de compatibilidade • campo estelar simplificado")
+        onProfile("OpenGL ES 1.x • GL10 • ${catalogConstellationCount} constelações • ${catalogStarPositions.size / 3} estrelas catalogadas")
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -558,6 +636,20 @@ private class LegacySpaceRenderer(
         gl.glPointSize(2f)
         gl.glColor4f(0.78f, 0.86f, 1f, 1f)
         gl.glDrawArrays(GL10.GL_POINTS, 0, stars.size / 3)
+        if (catalogStarPositions.isNotEmpty()) {
+            catalogStarBuffer.position(0)
+            gl.glVertexPointer(3, GL10.GL_FLOAT, 0, catalogStarBuffer)
+            gl.glPointSize(2.2f)
+            gl.glColor4f(0.82f, 0.89f, 1f, 1f)
+            gl.glDrawArrays(GL10.GL_POINTS, 0, catalogStarPositions.size / 3)
+        }
+        if (constellationLinePositions.isNotEmpty()) {
+            constellationLineBuffer.position(0)
+            gl.glVertexPointer(3, GL10.GL_FLOAT, 0, constellationLineBuffer)
+            gl.glLineWidth(1f)
+            gl.glColor4f(0.24f, 0.58f, 0.95f, 0.82f)
+            gl.glDrawArrays(GL10.GL_LINES, 0, constellationLinePositions.size / 3)
+        }
         gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
     }
 
