@@ -33,7 +33,7 @@
 - As chamadas OpenGL ES são encaminhadas pelo driver Android à GPU, que executa o trabalho gráfico compatível com o hardware.
 - C++ não acessa diretamente registradores ou controla livremente clocks/voltagens da CPU/GPU; isso é gerenciado pelo sistema operacional e pelo driver.
 - A implementação oferece um caminho GL10 para OpenGL ES 1.0/1.1 e um caminho GLES2 para ES 2.0 ou superior. Em dispositivos ES 3.x, o app usa contexto ES 2.0 por compatibilidade; não ativa automaticamente recursos exclusivos de ES 3.0/3.1/3.2. A versão ES 1.x é uma cena celeste de compatibilidade, sem os planetas 3D avançados do caminho GLES2.
-- Dispositivos sem suporte a OpenGL ES 2.0 não são compatíveis com a renderização 3D atual.
+- Dispositivos ES 1.0/1.1 usam o renderizador GL10 de compatibilidade; aparelhos ES 2.0 ou superiores usam o renderizador nativo GLES2.
 
 ## Limites e precisão
 A cena é uma base visual/educativa inspirada em planetários como o Stellarium. As posições orbitais dos oito planetas usam vetores do JPL Horizons, calculados numericamente para a janela consultada e animados por interpolação. A escala e o tamanho visual dos planetas são ajustados para a visualização, portanto não estão em escala física. A galeria usa imagens do NASA Image and Video Library. As imagens são registros de missões e observatórios, não vídeo ao vivo; a Via Láctea e o campo estelar ainda são procedurais e não um catálogo astrométrico. O catálogo integrado contém 725 estrelas e as 676 ligações estelares das 88 constelações ocidentais oficiais; os traços são figuras de referência do Stellarium associadas a posições do catálogo HYG/Hipparcos. A orientação astronômica ainda não é corrigida dinamicamente para precessão, nutação, refração ou horizonte topocêntrico. Nenhum aplicativo consegue exibir literalmente todo o Universo em transmissão ao vivo: observações têm limites de cobertura, resolução e atraso.
@@ -71,7 +71,7 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - A previsão depende do horizonte geométrico e não considera nuvens, poluição luminosa, prédios ou árvores.
 - Satélites artificiais usam elementos GP/OMM do CelesTrak e propagação SGP4/SDP4 local por meio da biblioteca OrbitCore.
 - O indicador D2D/NTN observa se o Android 15 (API 35+) informa uma rede com transporte satelital ativa. Isso detecta a conectividade do próprio telefone, não todos os satélites no céu, e depende de modem, firmware, operadora e serviço compatíveis.
-- A versão permanece 1.1.0 (versionCode 3).
+- A versão atual é 1.2.5 (versionCode 3).
 
 
 ## Catálogo local do céu (inspirado em planetários)
