@@ -37,6 +37,11 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.math.sqrt
 
+private interface SpaceRendererControls {
+    override fun setUniverseMode(enabled: Boolean)
+    override fun changeView(scale: Float, dx: Float, dy: Float)
+}
+
 private class NativeBridge {
     external fun nativeInit(memoryClassMb: Int)
     external fun nativeResize(width: Int, height: Int)
@@ -50,8 +55,8 @@ private class NativeBridge {
 
 class MainActivity : Activity(), LocationListener, SensorEventListener {
     private lateinit var glView: GLSurfaceView
-    private lateinit var nativeBridge: NativeBridge
-    private lateinit var spaceRenderer: NativeSpaceRenderer
+    private var nativeBridge: NativeBridge? = null
+    private lateinit var spaceRenderer: SpaceRendererControls
     private lateinit var locationLabel: TextView
     private lateinit var graphicsLabel: TextView
     private lateinit var dataLabel: TextView
@@ -71,14 +76,24 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        nativeBridge = NativeBridge()
+        val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val supportedGlEs = activityManager.deviceConfigurationInfo.reqGlEsVersion
         val root = FrameLayout(this)
         glView = GLSurfaceView(this).apply {
-            // ES 2.0 é o perfil mínimo garantido pelo manifesto.
-            // Em GPUs ES 3.x, o driver mantém compatibilidade ES 2.0.
-            setEGLContextClientVersion(2)
-            spaceRenderer = NativeSpaceRenderer(nativeBridge, applicationContext) { info ->
-                runOnUiThread { graphicsLabel.text = info }
+            if (supportedGlEs >= 0x00020000) {
+                // ES 2.0 é o caminho principal; GPUs ES 3.x mantêm compatibilidade ES 2.0.
+                setEGLContextClientVersion(2)
+                val bridge = NativeBridge()
+                nativeBridge = bridge
+                spaceRenderer = NativeSpaceRenderer(bridge, applicationContext) { info ->
+                    runOnUiThread { graphicsLabel.text = info }
+                }
+            } else {
+                // GPUs ES 1.0/1.1 usam renderização fixa GL10, sem chamar funções GLES2.
+                setEGLContextClientVersion(1)
+                spaceRenderer = LegacySpaceRenderer { info ->
+                    runOnUiThread { graphicsLabel.text = info }
+                }
             }
             setRenderer(spaceRenderer)
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
@@ -185,7 +200,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
             runOnUiThread {
                 dataLabel.text = message
                 if (positions != null) {
-                    glView.queueEvent { nativeBridge.nativeSetEphemeris(positions) }
+                    glView.queueEvent { nativeBridge?.nativeSetEphemeris(positions) }
                     dataLabel.text = "$message • movimento orbital acelerado • 1 dia por segundo"
                 }
             }
@@ -483,11 +498,85 @@ private class SkyCompassView(context: Context) : View(context) {
     }
 }
 
+
+/**
+ * Renderizador de compatibilidade para OpenGL ES 1.0/1.1.
+ * Usa apenas a API fixa GL10; não depende de shaders nem da biblioteca GLES2.
+ */
+private class LegacySpaceRenderer(
+    private val onProfile: (String) -> Unit
+) : GLSurfaceView.Renderer, SpaceRendererControls {
+    @Volatile private var zoom = 1f
+    @Volatile private var yaw = 0f
+    @Volatile private var pitch = 0.18f
+    private val stars = FloatArray(900 * 3) { index ->
+        // Coordenadas esféricas pseudoaleatórias estáveis no campo de visão.
+        val axis = index % 3
+        when (axis) {
+            0 -> (((index * 73 + 19) % 997) / 498.5f) - 1f
+            1 -> (((index * 151 + 43) % 991) / 495.5f) - 1f
+            else -> (((index * 199 + 7) % 983) / 491.5f) - 1f
+        }
+    }
+    private val starBuffer = java.nio.ByteBuffer.allocateDirect(stars.size * 4)
+        .order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer().apply {
+            put(stars)
+            position(0)
+        }
+
+    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        gl ?: return
+        gl.glClearColor(0.005f, 0.008f, 0.025f, 1f)
+        gl.glEnable(GL10.GL_DEPTH_TEST)
+        gl.glEnable(GL10.GL_POINT_SMOOTH)
+        gl.glHint(GL10.GL_PERSPECTIVE_CORRECTION_HINT, GL10.GL_NICEST)
+        onProfile("OpenGL ES 1.x • renderizador GL10 de compatibilidade • campo estelar simplificado")
+    }
+
+    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+        gl ?: return
+        val safeHeight = if (height == 0) 1 else height
+        gl.glViewport(0, 0, width, safeHeight)
+        gl.glMatrixMode(GL10.GL_PROJECTION)
+        gl.glLoadIdentity()
+        val aspect = width.toFloat() / safeHeight.toFloat()
+        gl.glOrthof(-aspect, aspect, -1f, 1f, -10f, 10f)
+        gl.glMatrixMode(GL10.GL_MODELVIEW)
+    }
+
+    override fun onDrawFrame(gl: GL10?) {
+        gl ?: return
+        gl.glClear(GL10.GL_COLOR_BUFFER_BIT or GL10.GL_DEPTH_BUFFER_BIT)
+        gl.glMatrixMode(GL10.GL_MODELVIEW)
+        gl.glLoadIdentity()
+        gl.glTranslatef(0f, 0f, -2.2f)
+        gl.glScalef(zoom, zoom, 1f)
+        gl.glRotatef(Math.toDegrees(yaw.toDouble()).toFloat(), 0f, 1f, 0f)
+        gl.glRotatef(Math.toDegrees(pitch.toDouble()).toFloat(), 1f, 0f, 0f)
+        gl.glEnableClientState(GL10.GL_VERTEX_ARRAY)
+        gl.glVertexPointer(3, GL10.GL_FLOAT, 0, starBuffer)
+        gl.glPointSize(2f)
+        gl.glColor4f(0.78f, 0.86f, 1f, 1f)
+        gl.glDrawArrays(GL10.GL_POINTS, 0, stars.size / 3)
+        gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
+    }
+
+    override fun setUniverseMode(enabled: Boolean) {
+        if (enabled) { zoom = 0.72f; yaw = 0f; pitch = 0.18f } else zoom = 1f
+    }
+
+    override fun changeView(scale: Float, dx: Float, dy: Float) {
+        zoom = (zoom * scale).coerceIn(0.65f, 2.6f)
+        yaw += dx * 0.008f
+        pitch = (pitch + dy * 0.004f).coerceIn(-0.45f, 0.75f)
+    }
+}
+
 private class NativeSpaceRenderer(
     private val bridge: NativeBridge,
     private val appContext: Context,
     private val onProfile: (String) -> Unit
-) : GLSurfaceView.Renderer {
+) : GLSurfaceView.Renderer, SpaceRendererControls {
     @Volatile private var zoom = 1f
     @Volatile private var yaw = 0f
     @Volatile private var pitch = 0.18f
