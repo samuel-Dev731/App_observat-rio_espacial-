@@ -121,3 +121,5 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - **Ao vivo significa atualização periódica de previsões orbitais**. Não é telemetria, comando, rastreamento por rádio nem vídeo de missão. Telemetria real só pode ser exibida quando uma agência publicar um feed de missão compatível.
 - O monitoramento depende de internet e localização; ele para quando o painel é fechado ou o app vai para segundo plano.
 - Compatibilidade mantida: Android 8.0+, OpenGL ES 1.x fallback e ES 2.0 renderer principal. Versão mantida em 1.2.5 / versionCode 3.
+
+- A busca individual NASA/JPL também aceita outros nomes ou IDs que o JPL Horizons reconheça, além das dez missões de exemplo do monitor automático. A disponibilidade depende da cobertura do catálogo JPL para o alvo e a época consultados.
