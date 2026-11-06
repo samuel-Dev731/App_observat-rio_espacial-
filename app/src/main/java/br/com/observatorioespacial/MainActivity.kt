@@ -9,6 +9,8 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.BitmapFactory
@@ -70,6 +72,18 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
     private var d2dLabel: TextView? = null
     private var compassView: SkyCompassView? = null
     private var universeLiveMode = true
+    private val liveMonitorHandler = Handler(Looper.getMainLooper())
+    private var liveMonitorRunning = false
+    private var liveMonitorDialog: AlertDialog? = null
+    private var liveMonitorText: TextView? = null
+    private var lastProbeRefreshMillis = 0L
+    private val liveMonitorTick = object : Runnable {
+        override fun run() {
+            if (!liveMonitorRunning) return
+            refreshLiveSpaceMonitor()
+            liveMonitorHandler.postDelayed(this, 60_000L)
+        }
+    }
     private var previousTouchX = 0f
     private var previousTouchY = 0f
     private var previousPinchDistance = 0f
@@ -200,6 +214,17 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         }
         root.addView(d2dLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = dp(258) })
 
+        val liveTrackingButton = TextView(this).apply {
+            text = "🛰  MONITORAMENTO AO VIVO • SATÉLITES E SONDAS"
+            setTextColor(Color.WHITE); textSize = 11f; gravity = Gravity.CENTER
+            setPadding(dp(12), dp(9), dp(12), dp(9))
+            setBackgroundColor(Color.argb(220, 12, 82, 92))
+            setOnClickListener { showLiveSpaceMonitor() }
+        }
+        root.addView(liveTrackingButton, FrameLayout.LayoutParams(-1, dp(44), Gravity.TOP).apply {
+            topMargin = dp(282); leftMargin = dp(14); rightMargin = dp(14)
+        })
+
         locationLabel = TextView(this).apply {
             text = "Solicitando localização…"
             setTextColor(Color.rgb(190, 215, 255))
@@ -225,6 +250,117 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         checkLocationPermission()
+    }
+
+    private fun showLiveSpaceMonitor() {
+        val observer = currentLocation
+        if (observer == null) {
+            AlertDialog.Builder(this)
+                .setMessage("Ative a localização para calcular quais satélites estão acima do seu horizonte.")
+                .setPositiveButton("OK", null).show()
+            return
+        }
+        if (liveMonitorRunning) return
+        liveMonitorText = TextView(this).apply {
+            text = "Iniciando consultas ao catálogo orbital CelesTrak e NASA/JPL…"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            setPadding(dp(18), dp(14), dp(18), dp(14))
+        }
+        liveMonitorDialog = AlertDialog.Builder(this)
+            .setTitle("MONITORAMENTO ESPACIAL")
+            .setView(liveMonitorText)
+            .setPositiveButton("Parar monitoramento") { _, _ -> stopLiveSpaceMonitor() }
+            .setOnCancelListener { stopLiveSpaceMonitor() }
+            .create()
+        liveMonitorDialog?.setOnDismissListener { stopLiveSpaceMonitor() }
+        liveMonitorDialog?.show()
+        liveMonitorRunning = true
+        lastProbeRefreshMillis = 0L
+        refreshLiveSpaceMonitor()
+        liveMonitorHandler.removeCallbacks(liveMonitorTick)
+        liveMonitorHandler.postDelayed(liveMonitorTick, 60_000L)
+    }
+
+    private fun stopLiveSpaceMonitor() {
+        liveMonitorRunning = false
+        liveMonitorHandler.removeCallbacks(liveMonitorTick)
+        liveMonitorText = null
+        liveMonitorDialog = null
+    }
+
+    private fun refreshLiveSpaceMonitor() {
+        val observer = currentLocation
+        if (!liveMonitorRunning || observer == null) return
+        liveMonitorText?.text = "Atualizando catálogo ACTIVE do CelesTrak…\nA propagação orbital é calculada no aparelho."
+        LiveSpaceMonitorService.fetchActiveSatelliteSnapshot(
+            observer.latitude, observer.longitude,
+            if (observer.hasAltitude()) observer.altitude else 0.0
+        ) { snapshot, error ->
+            runOnUiThread {
+                if (!liveMonitorRunning) return@runOnUiThread
+                val satelliteBlock = if (snapshot != null) {
+                    buildString {
+                        append("SATÉLITES • CELESTRAK / NORAD + SGP4\n")
+                        append("Catálogo recebido: ${snapshot.totalCatalogued} • avaliados: ${snapshot.evaluated}\n")
+                        append("Atualizado: ${snapshot.timestamp}\n")
+                        append(snapshot.warning).append("\n\n")
+                        append("ACIMA DO SEU HORIZONTE AGORA:\n")
+                        if (snapshot.visible.isEmpty()) append("Nenhum dos objetos analisados está acima do horizonte.\n")
+                        else snapshot.visible.forEach { append("• ").append(it).append("\n") }
+                    }
+                } else {
+                    "SATÉLITES • CelesTrak indisponível: ${error ?: "erro de rede"}\n"
+                }
+                val now = System.currentTimeMillis()
+                if (now - lastProbeRefreshMillis >= 10 * 60 * 1000L) {
+                    lastProbeRefreshMillis = now
+                    liveMonitorText?.text = satelliteBlock + "\nConsultando efemérides NASA/JPL das sondas…"
+                    refreshProbeMonitor(0, mutableListOf()) { probeBlock ->
+                        runOnUiThread {
+                            if (liveMonitorRunning) liveMonitorText?.text =
+                                satelliteBlock + "\nSONDAS E TELESCÓPIOS • NASA/JPL HORIZONS\n" +
+                                probeBlock +
+                                "\n\nAtualização automática: satélites a cada 60 s; sondas a cada 10 min. " +
+                                "Efemérides são posições calculadas, não telemetria ao vivo."
+                        }
+                    }
+                } else {
+                    liveMonitorText?.text = satelliteBlock +
+                        "\nSondas/telescópios: última consulta NASA/JPL mantida (nova consulta a cada 10 min)."
+                }
+            }
+        }
+    }
+
+    private fun refreshProbeMonitor(
+        index: Int,
+        results: MutableList<String>,
+        completed: (String) -> Unit
+    ) {
+        val missions = listOf("Voyager 1", "Voyager 2", "New Horizons", "Parker Solar Probe", "Juno",
+            "Hubble", "JUICE", "Hayabusa2", "SOHO", "Lucy")
+        if (index >= missions.size) {
+            completed(results.joinToString("\n"))
+            return
+        }
+        val observer = currentLocation ?: run {
+            completed("Localização indisponível.")
+            return
+        }
+        SpacecraftCatalogService.search(
+            missions[index], observer.latitude, observer.longitude,
+            if (observer.hasAltitude()) observer.altitude else 0.0
+        ) { result ->
+            val summary = result.lineSequence().filter {
+                it.startsWith("MISSÃO:") || it.startsWith("Data/hora:") ||
+                    it.startsWith("Azimute:") || it.startsWith("Elevação:")
+            }.joinToString(" • ")
+            synchronized(results) {
+                results.add(if (summary.isBlank()) "${missions[index]}: dados indisponíveis" else summary)
+            }
+            refreshProbeMonitor(index + 1, results, completed)
+        }
     }
 
     private fun showObjectSearch() {
@@ -504,6 +640,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         if (::locationManager.isInitialized && hasLocationPermission()) startLocationUpdates()
     }
     override fun onPause() {
+        stopLiveSpaceMonitor()
         if (::sensorManager.isInitialized) sensorManager.unregisterListener(this)
         unregisterSatelliteNetworkMonitor()
         if (::glView.isInitialized) glView.onPause()
