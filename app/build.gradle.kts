@@ -5,6 +5,8 @@ plugins {
 
 dependencies {
     implementation("com.parodison:orbit-core:0.1.0")
+    // Atribuição oficial de instalações da Google Play.
+    implementation("com.android.installreferrer:installreferrer:2.2")
 }
 
 android {
