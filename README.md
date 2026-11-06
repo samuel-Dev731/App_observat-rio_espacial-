@@ -112,3 +112,12 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - Satélites artificiais em órbita terrestre continuam usando CelesTrak/NORAD + SGP4/SDP4; sondas interplanetárias e telescópios espaciais usam JPL Horizons.
 - Documentação: https://ssd-api.jpl.nasa.gov/doc/horizons.html e https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/FORTRAN/req/naif_ids.html.
 - Esta evolução mantém a versão Android em 1.2.5 (versionCode 3).
+
+## Monitoramento contínuo de satélites e missões
+- Novo painel **Monitoramento Espacial** consulta o grupo público `ACTIVE` do CelesTrak (GP/OMM) e propaga elementos orbitais com SGP4/SDP4 no aparelho.
+- O painel atualiza o catálogo/posições dos satélites a cada 60 segundos enquanto permanece aberto e o app está em primeiro plano.
+- Para reduzir consumo de memória em celulares de entrada, cada ciclo avalia até 1.200 objetos do conjunto ACTIVE recebido. A tela informa o total catalogado e quantos foram efetivamente avaliados; portanto, não afirma que todos os registros foram propagados em cada ciclo.
+- O painel consulta também as efemérides JPL Horizons das missões Voyager 1/2, New Horizons, Parker Solar Probe, Juno, Hubble, JUICE, Hayabusa2, SOHO e Lucy a cada 10 minutos.
+- **Ao vivo significa atualização periódica de previsões orbitais**. Não é telemetria, comando, rastreamento por rádio nem vídeo de missão. Telemetria real só pode ser exibida quando uma agência publicar um feed de missão compatível.
+- O monitoramento depende de internet e localização; ele para quando o painel é fechado ou o app vai para segundo plano.
+- Compatibilidade mantida: Android 8.0+, OpenGL ES 1.x fallback e ES 2.0 renderer principal. Versão mantida em 1.2.5 / versionCode 3.
