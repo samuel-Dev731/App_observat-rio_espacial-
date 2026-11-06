@@ -43,16 +43,17 @@ object SpacecraftCatalogService {
                 val term = normalize(query)
                 val mission = missions.firstOrNull { item ->
                     normalize(item.name) == term || item.aliases.any { normalize(it) == term } || item.naifId == term
-                } ?: throw IllegalArgumentException(
-                    "Missão não encontrada no catálogo. Exemplos: Voyager 1, Voyager 2, New Horizons, Parker Solar Probe, Juno, Hubble, JUICE, Hayabusa2, SOHO ou Lucy."
-                )
+                }
+                // Qualquer alvo reconhecido pelo JPL Horizons pode ser consultado pelo nome ou ID.
+                val targetId = mission?.naifId ?: query.trim()
+                val targetName = mission?.name ?: query.trim()
 
                 val start = Instant.now().truncatedTo(ChronoUnit.MINUTES)
                 val stop = start.plus(24, ChronoUnit.HOURS)
                 val site = String.format(Locale.US, "%.6f,%.6f,%.3f", longitude, latitude, altitudeMeters / 1000.0)
                 val address = Uri.parse("https://ssd.jpl.nasa.gov/api/horizons.api").buildUpon()
                     .appendQueryParameter("format", "json")
-                    .appendQueryParameter("COMMAND", "'${mission.naifId}'")
+                    .appendQueryParameter("COMMAND", "'${targetId}'")
                     .appendQueryParameter("OBJ_DATA", "YES")
                     .appendQueryParameter("MAKE_EPHEM", "YES")
                     .appendQueryParameter("EPHEM_TYPE", "OBSERVER")
@@ -84,12 +85,12 @@ object SpacecraftCatalogService {
                 val firstVisible = above.firstOrNull()
                 val visibleLabel = if (lastVisible != null) "VISÍVEL ATÉ: ${lastVisible[0]} UTC"
                     else "VISIBILIDADE: não acima do horizonte nas próximas 24 horas"
-                val nextLabel = if (firstVisible != null) "PRÓXIMA VISIBILIDADE: ${mission.name} • ${firstVisible[0]} UTC"
-                    else "PRÓXIMA VISIBILIDADE: ${mission.name} • não prevista nas próximas 24 horas"
+                val nextLabel = if (firstVisible != null) "PRÓXIMA VISIBILIDADE: ${targetName} • ${firstVisible[0]} UTC"
+                    else "PRÓXIMA VISIBILIDADE: ${targetName} • não prevista nas próximas 24 horas"
 
                 callback(
                     "$visibleLabel\n$nextLabel\n" +
-                    "MISSÃO: ${mission.name} • ID NAIF/JPL: ${mission.naifId}\n" +
+                    "MISSÃO: ${targetName} • ID NAIF/JPL: ${targetId}\n" +
                     "Fonte: NASA/JPL Horizons • efemérides topocêntricas calculadas\n" +
                     "Data/hora: ${first[0]} UTC\n" +
                     "Ascensão reta: ${first.getOrElse(1) { "—" }}°\n" +
