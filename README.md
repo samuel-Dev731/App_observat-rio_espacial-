@@ -49,7 +49,7 @@ A localização é processada no aparelho e exibida na tela; esta versão não e
 C# ainda não foi incorporado. O aplicativo usa Kotlin para integração Android, C e C++ para cálculo/renderização nativa. Adicionar .NET para Android apenas para misturar linguagens aumentaria a complexidade e não aceleraria automaticamente a GPU.
 
 ## Compilação
-O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 8.11.1 a cada push na branch `main`. Quando a compilação terminar, o APK de depuração será publicado como artefato `observatorio-espacial-debug` na execução do workflow.
+O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 9.5.0 a cada push na branch `main`. Quando a compilação terminar, o APK de depuração será publicado como artefato `observatorio-espacial-debug` na execução do workflow.
 
 
 ## Pesquisa de objetos celestes
@@ -83,7 +83,7 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - O APK enviado foi inspecionado como referência de estrutura e recursos. Seus bancos de dados, imagens e demais arquivos não foram incorporados ao projeto sem verificação independente de licença e origem.
 
 ## Ferramentas de compilação
-- Android Gradle Plugin 8.10.1, Gradle 8.11.1 e compileSdk 36, necessários para atender aos metadados da dependência OrbitCore 0.1.0.
+- Android Gradle Plugin 8.10.1, Gradle 9.5.0 e compileSdk 36, necessários para atender aos metadados da dependência OrbitCore 0.1.0.
 - targetSdk permanece 35, minSdk permanece 26 e a versão do app continua 1.3.0 (versionCode 4).
 
 
