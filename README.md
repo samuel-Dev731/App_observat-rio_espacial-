@@ -123,3 +123,11 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - Compatibilidade mantida: Android 8.0+, OpenGL ES 1.x fallback e ES 2.0 renderer principal. Versão mantida em 1.2.5 / versionCode 3.
 
 - A busca individual NASA/JPL também aceita outros nomes ou IDs que o JPL Horizons reconheça, além das dez missões de exemplo do monitor automático. A disponibilidade depende da cobertura do catálogo JPL para o alvo e a época consultados.
+
+
+## Atribuição de instalação da Google Play
+- Integração com a biblioteca oficial Google Play Install Referrer 2.2.
+- Na primeira abertura compatível, o app consulta o serviço da Google Play e guarda localmente o texto de referência da instalação e os horários de clique/instalação.
+- Os dados ficam no armazenamento privado do app; esta implementação não envia esses dados a um servidor nem identifica pessoalmente o usuário.
+- A API fornece parâmetros de campanha quando a instalação ocorre por um fluxo da Google Play que disponibiliza essas informações. Instalações por APK direto ou outras lojas podem não fornecer dados.
+- A referência de instalação não é uma permissão de rastreamento geral e não substitui os relatórios agregados da Google Play Console. Se futuramente forem adicionadas análises ou transmissão de dados, isso deverá ser explicado na política de privacidade e configurado conforme as políticas da Play.
