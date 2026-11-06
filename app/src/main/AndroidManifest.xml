@@ -17,7 +17,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-    <uses-feature android.hardware.wifi android:required="false" />
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <uses-feature android:glEsVersion="0x00010000" android:required="false" />
 
     <application
