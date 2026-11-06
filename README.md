@@ -1,6 +1,6 @@
 # Observatório Espacial 🛰️
 
-**Versão 1.2.5** — aplicativo Android de exploração espacial.
+**Versão 1.3.0** — aplicativo Android de exploração espacial.
 
 ## Compatibilidade
 - Android 8.0 (API 26) ou superior.
@@ -71,7 +71,7 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - A previsão depende do horizonte geométrico e não considera nuvens, poluição luminosa, prédios ou árvores.
 - Satélites artificiais usam elementos GP/OMM do CelesTrak e propagação SGP4/SDP4 local por meio da biblioteca OrbitCore.
 - O indicador D2D/NTN observa se o Android 15 (API 35+) informa uma rede com transporte satelital ativa. Isso detecta a conectividade do próprio telefone, não todos os satélites no céu, e depende de modem, firmware, operadora e serviço compatíveis.
-- A versão atual é 1.2.5 (versionCode 3).
+- A versão atual é 1.3.0 (versionCode 4).
 
 
 ## Catálogo local do céu (inspirado em planetários)
@@ -84,7 +84,7 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 
 ## Ferramentas de compilação
 - Android Gradle Plugin 8.10.1, Gradle 8.11.1 e compileSdk 36, necessários para atender aos metadados da dependência OrbitCore 0.1.0.
-- targetSdk permanece 35, minSdk permanece 26 e a versão do app continua 1.2.5 (versionCode 3).
+- targetSdk permanece 35, minSdk permanece 26 e a versão do app continua 1.3.0 (versionCode 4).
 
 
 ## Campo estelar 3D e constelações
@@ -96,12 +96,12 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - A quantidade de estrelas e partículas continua adaptada ao perfil de memória/GPU do aparelho.
 
 
-## Campo estelar expandido — versão 1.2.5
+## Campo estelar expandido — versão 1.3.0
 - O perfil gráfico alto gera mais de 1 milhão de estrelas procedurais (1.000.000 pontos de fundo, além das estrelas brilhantes catalogadas no código).
 - Perfis médio e econômico reduzem a quantidade desenhada para 300 mil e 100 mil pontos, respectivamente, para limitar uso de memória e carga da GPU em celulares modestos.
 - As estrelas recebem classes de cor aproximadas (azul, branco, amarelo, laranja e vermelho) e tamanhos/brilhos aparentes variados. A distribuição é sintética e serve para visualização, não é um catálogo científico medido.
 - As linhas de constelações continuam sendo padrões didáticos aproximados; esta versão não contém milhões de constelações. A União Astronômica Internacional reconhece 88 constelações oficiais. Um catálogo real com milhões de estrelas/objetos (meta futura de 7 milhões) exige dados astrométricos licenciados, armazenamento compacto e carregamento por setores, não a criação de pontos aleatórios.
-- Versão Android: 1.2.5 (versionCode 3), Android mínimo 8.0 (API 26).
+- Versão Android: 1.3.0 (versionCode 4), Android mínimo 8.0 (API 26).
 
 ## Sondas e telescópios espaciais — NASA/JPL
 - A pesquisa de objetos agora inclui uma categoria para sondas e observatórios espaciais, consultando efemérides do JPL Horizons por meio da API oficial.
@@ -111,7 +111,7 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - Os dados representam efemérides calculadas pelo JPL, não telemetria de bordo em tempo real, comunicação de rádio, vídeo ao vivo ou controle remoto das sondas.
 - Satélites artificiais em órbita terrestre continuam usando CelesTrak/NORAD + SGP4/SDP4; sondas interplanetárias e telescópios espaciais usam JPL Horizons.
 - Documentação: https://ssd-api.jpl.nasa.gov/doc/horizons.html e https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/FORTRAN/req/naif_ids.html.
-- Esta evolução mantém a versão Android em 1.2.5 (versionCode 3).
+- Esta evolução mantém a versão Android em 1.3.0 (versionCode 4).
 
 ## Monitoramento contínuo de satélites e missões
 - Novo painel **Monitoramento Espacial** consulta o grupo público `ACTIVE` do CelesTrak (GP/OMM) e propaga elementos orbitais com SGP4/SDP4 no aparelho.
@@ -120,7 +120,7 @@ O workflow do GitHub Actions executa `gradle assembleDebug` com JDK 17 e Gradle 
 - O painel consulta também as efemérides JPL Horizons das missões Voyager 1/2, New Horizons, Parker Solar Probe, Juno, Hubble, JUICE, Hayabusa2, SOHO e Lucy a cada 10 minutos.
 - **Ao vivo significa atualização periódica de previsões orbitais**. Não é telemetria, comando, rastreamento por rádio nem vídeo de missão. Telemetria real só pode ser exibida quando uma agência publicar um feed de missão compatível.
 - O monitoramento depende de internet e localização; ele para quando o painel é fechado ou o app vai para segundo plano.
-- Compatibilidade mantida: Android 8.0+, OpenGL ES 1.x fallback e ES 2.0 renderer principal. Versão mantida em 1.2.5 / versionCode 3.
+- Compatibilidade mantida: Android 8.0+, OpenGL ES 1.x fallback e ES 2.0 renderer principal. Versão mantida em 1.3.0 / versionCode 4.
 
 - A busca individual NASA/JPL também aceita outros nomes ou IDs que o JPL Horizons reconheça, além das dez missões de exemplo do monitor automático. A disponibilidade depende da cobertura do catálogo JPL para o alvo e a época consultados.
 
