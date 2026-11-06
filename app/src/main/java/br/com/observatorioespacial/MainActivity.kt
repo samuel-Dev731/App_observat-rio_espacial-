@@ -92,6 +92,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        InstallAttribution.capture(this)
         val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val supportedGlEs = activityManager.deviceConfigurationInfo.reqGlEsVersion
         val root = FrameLayout(this)
