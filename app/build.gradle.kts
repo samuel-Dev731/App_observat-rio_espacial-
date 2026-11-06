@@ -17,8 +17,8 @@ android {
         applicationId = "br.com.observatorioespacial"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.5"
+        versionCode = 4
+        versionName = "1.3.0"
 
         // ABIs oficiais suportadas pelo Android NDK.
         // Inclui ARM 32/64 bits e x86 32/64 bits.
