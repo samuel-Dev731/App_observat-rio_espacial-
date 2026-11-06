@@ -371,7 +371,7 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
                 val skyCatalog = choice == 2
                 val spacecraft = choice == 3
                 val field = EditText(this).apply {
-                    hint = when { satellite -> "Nome ou número NORAD (ex.: ISS)"; skyCatalog -> "Nome ou catálogo (ex.: Sírius, M31, M42)"; spacecraft -> "Ex.: Voyager 1, New Horizons, Juno, Hubble"; else -> "Nome ou designação (ex.: 1P/Halley)" }
+                    hint = when { satellite -> "Nome ou número NORAD (ex.: ISS)"; skyCatalog -> "Nome ou catálogo (ex.: Sírius, M31, M42)"; spacecraft -> "Nome/ID JPL: Voyager, Europa Clipper, OSIRIS-REx…"; else -> "Nome ou designação (ex.: 1P/Halley)" }
                     setSingleLine(true)
                     setPadding(dp(16), dp(12), dp(16), dp(12))
                 }
