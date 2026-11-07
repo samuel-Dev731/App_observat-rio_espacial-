@@ -26,24 +26,20 @@ jobs:
         with:
           gradle-version: '9.8.2'
 
-      - name: Repair and install Android NDK
+      - name: Install and verify Android NDK
         shell: bash
         run: |
           set -euo pipefail
-          SDKMANAGER="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools" -type f -name sdkmanager | head -n 1)"
-          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort | tail -n 1)"
+          test -x "$SDKMANAGER"
           rm -rf "$SDK_ROOT/ndk/28.2.13676358"
-          for attempt in 1 2 3; do
-            yes | "$SDKMANAGER" --install "ndk;28.2.13676358" && break
-            rm -rf "$SDK_ROOT/ndk/28.2.13676358"
-            if [ "$attempt" -eq 3 ]; then
-              echo "NDK installation failed after 3 attempts"
-              exit 1
-            fi
-            sleep 10
-          done
-          test -f "$SDK_ROOT/ndk/28.2.13676358/source.properties"
-          grep -q 'Pkg.Revision = 28.2.13676358' "$SDK_ROOT/ndk/28.2.13676358/source.properties"
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "ndk;28.2.13676358"
+          NDK_DIR="$SDK_ROOT/ndk/28.2.13676358"
+          test -s "$NDK_DIR/source.properties"
+          grep -Fq "Pkg.Revision = 28.2.13676358" "$NDK_DIR/source.properties"
+          test -x "$NDK_DIR/ndk-build"
+          echo "NDK 28.2.13676358 instalado e verificado."
 
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
