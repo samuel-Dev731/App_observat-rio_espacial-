@@ -22,7 +22,9 @@
 
     <application
         android:allowBackup="true"
-        android:label="Observatório Espacial"\n        android:icon="@drawable/ic_observatorio_square"\n        android:roundIcon="@drawable/ic_observatorio_round"
+        android:label="Observatório Espacial"
+        android:icon="@drawable/ic_observatorio_square"
+        android:roundIcon="@drawable/ic_observatorio_round"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity
