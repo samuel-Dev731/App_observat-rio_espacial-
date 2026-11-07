@@ -145,99 +145,96 @@ class MainActivity : Activity(), LocationListener, SensorEventListener {
         }
         root.addView(glView, FrameLayout.LayoutParams(-1, -1))
 
-        val title = TextView(this).apply {
-            text = "OBSERVATÓRIO ESPACIAL • UNIVERSO 3D + ESTRELAS"
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            setPadding(18, 24, 18, 8)
-            setShadowLayer(8f, 0f, 1f, Color.BLACK)
-        }
-        root.addView(title, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+        window.decorView.systemUiVisibility =
+            View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
 
         graphicsLabel = TextView(this).apply {
-            text = "Preparando campo estelar, constelações e GPU…"
-            setTextColor(Color.rgb(170, 210, 255))
-            textSize = 10f
-            setPadding(18, 4, 18, 4)
+            text = "Preparando céu 3D…"
+            setTextColor(Color.rgb(170, 210, 255)); textSize = 10f
+            setPadding(dp(12), dp(5), dp(12), dp(5))
             setShadowLayer(6f, 0f, 1f, Color.BLACK)
+            visibility = View.GONE
         }
-        val graphicsParams = FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = 62 }
-        root.addView(graphicsLabel, graphicsParams)
-
         dataLabel = TextView(this).apply {
-            text = "Carregando posições planetárias oficiais do NASA/JPL…"
-            setTextColor(Color.rgb(170, 230, 210))
-            textSize = 10f
-            setPadding(18, 4, 18, 4)
+            text = "Carregando efemérides NASA/JPL…"
+            setTextColor(Color.rgb(170, 230, 210)); textSize = 10f
+            setPadding(dp(12), dp(5), dp(12), dp(5))
             setShadowLayer(6f, 0f, 1f, Color.BLACK)
+            visibility = View.GONE
         }
-        root.addView(dataLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = 88 })
-
-        val liveUniverseButton = TextView(this).apply {
-            text = "◉  MODO LIVE • UNIVERSO INTEIRO"
-            setTextColor(Color.WHITE); textSize = 12f; gravity = Gravity.CENTER
-            setPadding(dp(14), dp(10), dp(14), dp(10))
-            setBackgroundColor(Color.argb(210, 25, 65, 105))
-            setOnClickListener {
-                universeLiveMode = !universeLiveMode
-                rendererControls.setUniverseMode(universeLiveMode)
-                text = if (universeLiveMode) "◉  MODO LIVE • UNIVERSO INTEIRO" else "◎  EXPLORAÇÃO LIVRE 3D"
-                dataLabel.text = if (universeLiveMode) "UNIVERSO LIVE • cena 3D animada e efemérides NASA/JPL quando disponíveis" else "Exploração livre • arraste para girar e pinça para aproximar"
-            }
-        }
-        root.addView(liveUniverseButton, FrameLayout.LayoutParams(-1, dp(42), Gravity.TOP).apply {
-            topMargin = dp(116); leftMargin = dp(14); rightMargin = dp(14)
-        })
-        val searchObjectsButton = TextView(this).apply {
-            text = "⌕  PESQUISAR SATÉLITES, ESTRELAS E GALÁXIAS"
-            setTextColor(Color.WHITE); textSize = 12f; gravity = Gravity.CENTER
-            setPadding(dp(14), dp(10), dp(14), dp(10))
-            setBackgroundColor(Color.argb(205, 18, 48, 78))
-            setOnClickListener { showObjectSearch() }
-        }
-        root.addView(searchObjectsButton, FrameLayout.LayoutParams(-1, dp(44), Gravity.TOP).apply {
-            topMargin = dp(164); leftMargin = dp(14); rightMargin = dp(14)
-        })
-        val constellationButton = TextView(this).apply {
-            text = "✦  88 CONSTELAÇÕES OFICIAIS"
-            setTextColor(Color.WHITE); textSize = 12f; gravity = Gravity.CENTER
-            setPadding(dp(14), dp(8), dp(14), dp(8))
-            setBackgroundColor(Color.argb(205, 30, 62, 95))
-            setOnClickListener { showConstellationList() }
-        }
-        root.addView(constellationButton, FrameLayout.LayoutParams(-1, dp(40), Gravity.TOP).apply {
-            topMargin = dp(212); leftMargin = dp(14); rightMargin = dp(14)
-        })
         d2dLabel = TextView(this).apply {
-            text = if (Build.VERSION.SDK_INT >= 35) "D2D/NTN: verificando rede satelital…" else "D2D/NTN: Android 15+ e modem/operadora compatíveis necessários"
-            setTextColor(Color.LTGRAY); textSize = 9f; setPadding(dp(16), dp(2), dp(16), dp(2))
-            setShadowLayer(5f, 0f, 1f, Color.BLACK)
+            text = if (Build.VERSION.SDK_INT >= 35) "D2D/NTN: verificando rede satelital…" else "D2D/NTN requer Android 15+ e modem/operadora compatíveis"
+            setTextColor(Color.LTGRAY); textSize = 10f
         }
-        root.addView(d2dLabel, FrameLayout.LayoutParams(-1, -2, Gravity.TOP).apply { topMargin = dp(258) })
 
-        val liveTrackingButton = TextView(this).apply {
-            text = "🛰  MONITORAMENTO AO VIVO • SATÉLITES E SONDAS"
-            setTextColor(Color.WHITE); textSize = 11f; gravity = Gravity.CENTER
-            setPadding(dp(12), dp(9), dp(12), dp(9))
-            setBackgroundColor(Color.argb(220, 12, 82, 92))
-            setOnClickListener { showLiveSpaceMonitor() }
+        fun hudButton(label: String, size: Float = 25f): TextView = TextView(this).apply {
+            text = label; textSize = size; gravity = Gravity.CENTER
+            setTextColor(Color.WHITE); setPadding(dp(12), dp(6), dp(12), dp(6))
+            setShadowLayer(8f, 0f, 1f, Color.BLACK)
+            setBackgroundColor(Color.argb(115, 2, 12, 28))
         }
-        root.addView(liveTrackingButton, FrameLayout.LayoutParams(-1, dp(44), Gravity.TOP).apply {
-            topMargin = dp(282); leftMargin = dp(14); rightMargin = dp(14)
-        })
+        val topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(8))
+        }
+        val menuButton = hudButton("☰", 28f)
+        val appName = TextView(this).apply {
+            text = "OBSERVATÓRIO ESPACIAL"
+            setTextColor(Color.WHITE); textSize = 13f
+            setShadowLayer(8f, 0f, 1f, Color.BLACK)
+            setPadding(dp(12), 0, 0, 0)
+        }
+        val searchButton = hudButton("⌕", 30f)
+        topBar.addView(menuButton, LinearLayout.LayoutParams(dp(48), dp(48)))
+        topBar.addView(appName, LinearLayout.LayoutParams(0, -2, 1f))
+        topBar.addView(searchButton, LinearLayout.LayoutParams(dp(48), dp(48)))
+        root.addView(topBar, FrameLayout.LayoutParams(-1, dp(64), Gravity.TOP))
+
+        menuButton.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("OBSERVATÓRIO ESPACIAL")
+                .setItems(arrayOf(
+                    if (universeLiveMode) "✓ Modo live • universo inteiro" else "Modo live • universo inteiro",
+                    "Pesquisar satélites, estrelas e galáxias",
+                    "88 constelações oficiais",
+                    "Monitoramento ao vivo • satélites e sondas",
+                    "Informações do sistema e compatibilidade"
+                )) { _, choice ->
+                    when (choice) {
+                        0 -> {
+                            universeLiveMode = !universeLiveMode
+                            rendererControls.setUniverseMode(universeLiveMode)
+                            dataLabel.text = if (universeLiveMode) "Modo live ativado" else "Exploração livre ativada"
+                        }
+                        1 -> showObjectSearch()
+                        2 -> showConstellationList()
+                        3 -> showLiveSpaceMonitor()
+                        4 -> AlertDialog.Builder(this).setTitle("Sistema").setMessage(
+                            graphicsLabel.text.toString() + "\n" + dataLabel.text + "\n" + d2dLabel?.text
+                        ).setPositiveButton("OK", null).show()
+                    }
+                }.setNegativeButton("Fechar", null).show()
+        }
+        searchButton.setOnClickListener { showObjectSearch() }
 
         locationLabel = TextView(this).apply {
-            text = "Solicitando localização…"
-            setTextColor(Color.rgb(190, 215, 255))
-            textSize = 12f
-            setPadding(16, 12, 16, 22)
-            setShadowLayer(6f, 0f, 1f, Color.BLACK)
+            text = "Obtendo posição do observador…"
+            setTextColor(Color.WHITE); textSize = 11f
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setShadowLayer(7f, 0f, 1f, Color.BLACK)
+            setBackgroundColor(Color.argb(125, 2, 12, 28))
         }
-        root.addView(locationLabel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
+        root.addView(locationLabel, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply {
+            leftMargin = dp(12); rightMargin = dp(12); bottomMargin = dp(12)
+        })
         compassView = SkyCompassView(this)
-        root.addView(compassView, FrameLayout.LayoutParams(dp(116), dp(116), Gravity.RIGHT or Gravity.BOTTOM).apply { rightMargin = dp(12); bottomMargin = dp(172) })
+        root.addView(compassView, FrameLayout.LayoutParams(dp(104), dp(104), Gravity.RIGHT or Gravity.BOTTOM).apply {
+            rightMargin = dp(12); bottomMargin = dp(76)
+        })
         setContentView(root)
-        addNasaImageGallery(root)
         AstronomyDataService.fetchPlanetPositions { positions, message ->
             runOnUiThread {
                 dataLabel.text = message
